@@ -5,3 +5,6 @@ Thumbs.db
 node_modules/
 dist/
 build/
+
+# Relatórios temporários de continuidade entre conversas
+/documentation/reports/CONTINUIDADE_PJCORE_LABS_*.md
