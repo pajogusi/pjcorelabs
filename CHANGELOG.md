@@ -1,5 +1,12 @@
 # Changelog — PJCore Labs
 
+## v1.0.1 — Organização de Continuidade
+
+- Adicionada regra oficial para relatórios temporários de continuidade entre conversas.
+- Os relatórios `CONTINUIDADE_PJCORE_LABS_*.md` passaram a ser ignorados pelo Git.
+- Registada no `CADERNO_DE_ENCARGOS.md` a distinção entre documentação oficial e ficheiros transitórios.
+
+
 ## v1.0.0 — Homepage Oficial
 
 - Publicada a homepage oficial do PJCore Labs em https://pjcorelabs.com.

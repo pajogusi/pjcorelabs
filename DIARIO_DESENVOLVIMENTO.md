@@ -2,6 +2,13 @@
 
 ## 2026-07-05
 
+- Definida regra oficial para relatórios de continuidade:
+  - os ficheiros `documentation/reports/CONTINUIDADE_PJCORE_LABS_*.md` são temporários;
+  - servem apenas para transição entre conversas;
+  - não são documentação oficial permanente;
+  - foram adicionados ao `.gitignore`;
+  - a regra foi registada no `CADERNO_DE_ENCARGOS.md`.
+
 - Registados os domínios principais:
   - pjcorelabs.com
   - pjcorelabs.co.uk
