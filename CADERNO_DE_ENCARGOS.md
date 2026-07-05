@@ -12,3 +12,19 @@ Criar uma identidade digital central para projetos de software, IA, automação 
 - Separar website, identidade visual, produtos e documentação.
 - Fazer commit antes e depois de alterações importantes.
 - Para fechar atualizações, usar `./scripts/uteis/fechar-atualizacao.sh "Mensagem do commit"` em vez de repetir manualmente `git add`, `git commit` e `git push`.
+
+## Continuidade entre conversas
+
+- O script `./scripts/uteis/muda-o-disco.sh` gera relatórios temporários de continuidade.
+- Estes relatórios servem apenas para transportar contexto entre conversas.
+- Os ficheiros `documentation/reports/CONTINUIDADE_PJCORE_LABS_*.md` não são documentação oficial permanente.
+- Depois de a informação importante estar integrada nos documentos oficiais, estes relatórios podem ser apagados.
+- A documentação oficial do projeto continua a ser composta por:
+  - README.md
+  - CADERNO_DE_ENCARGOS.md
+  - DIARIO_DESENVOLVIMENTO.md
+  - CHANGELOG.md
+  - ROADMAP.md
+  - TODO.md
+  - DOMINIOS.md
+
