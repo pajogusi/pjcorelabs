@@ -14,7 +14,8 @@
 ## Pendente
 
 - [ ] Apontar pjcorelabs.co.uk para pjcorelabs.com.
-- [ ] Criar email geral@pjcorelabs.com.
+- [x] Criar email geral@pjcorelabs.com.
+- [x] Criar forwarding contact@pjcorelabs.com.
 - [ ] Finalizar identidade visual oficial completa.
 - [ ] Criar páginas dedicadas para os projetos principais.
 - [ ] Criar página Workstation OS.

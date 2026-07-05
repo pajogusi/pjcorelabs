@@ -2,6 +2,12 @@
 
 ## 2026-07-05
 
+- Configurado email forwarding gratuito na Porkbun:
+  - geral@pjcorelabs.com → pajogusi.uk@gmail.com
+  - contact@pjcorelabs.com → pajogusi.uk@gmail.com
+- Ambos os endereços foram testados e confirmados como funcionais.
+- Mantida a decisão de não ativar mailbox paga/hosted email nesta fase.
+
 - Definida regra oficial para relatórios de continuidade:
   - os ficheiros `documentation/reports/CONTINUIDADE_PJCORE_LABS_*.md` são temporários;
   - servem apenas para transição entre conversas;

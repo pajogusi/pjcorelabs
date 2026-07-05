@@ -1,5 +1,14 @@
 # Changelog — PJCore Labs
 
+## v1.0.2 — Email Profissional
+
+- Configurado email forwarding gratuito na Porkbun.
+- Ativado e testado `geral@pjcorelabs.com`.
+- Ativado e testado `contact@pjcorelabs.com`.
+- Ambos encaminham para `pajogusi.uk@gmail.com`.
+- Mantida a decisão de não usar mailbox paga/hosted email nesta fase.
+
+
 ## v1.0.1 — Organização de Continuidade
 
 - Adicionada regra oficial para relatórios temporários de continuidade entre conversas.
