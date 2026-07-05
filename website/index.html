@@ -2,34 +2,148 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>PJCore Labs</title>
+  <title>PJCore Labs — Software, AI and Digital Tools</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="PJCore Labs builds software, AI, automation and digital tools for practical real-world projects.">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header class="site-header">
-    <div class="brand">PJCore Labs</div>
+    <a class="brand" href="#home">
+      <img src="img/pjcorelabs-symbol-clean.png" alt="PJCore Labs logo">
+      <span>PJCore Labs</span>
+    </a>
 
     <nav class="site-nav">
-      <a href="#" data-i18n="navHome">Home</a>
-      <a href="#" data-i18n="navProjects">Projects</a>
-      <a href="#" data-i18n="navRoadmap">Roadmap</a>
-      <a href="#" data-i18n="navAbout">About</a>
-      <a href="#" data-i18n="navContact">Contact</a>
+      <a href="#home" data-i18n="navHome">Home</a>
+      <a href="#projects" data-i18n="navProjects">Projects</a>
+      <a href="#roadmap" data-i18n="navRoadmap">Roadmap</a>
+      <a href="#about" data-i18n="navAbout">About</a>
+      <a href="#contact" data-i18n="navContact">Contact</a>
     </nav>
 
-    <div class="language-switcher">
+    <div class="language-switcher" aria-label="Language selector">
       <button data-lang-button="pt">PT</button>
       <button data-lang-button="en">EN</button>
     </div>
   </header>
 
-  <main class="hero">
-    <h1 data-i18n="heroTitle">PJCore Labs</h1>
-    <p data-i18n="heroSubtitle">Software, AI, automation and digital tools.</p>
-    <p class="small" data-i18n="heroStatus">Website under construction.</p>
+  <main>
+    <section id="home" class="hero section">
+      <div class="hero-content">
+        <p class="eyebrow" data-i18n="heroEyebrow">Independent digital lab</p>
+        <h1 data-i18n="heroTitle">PJCore Labs</h1>
+        <p class="hero-subtitle" data-i18n="heroSubtitle">Software, AI, automation and digital tools built with practical purpose.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#projects" data-i18n="heroPrimary">View projects</a>
+          <a class="button secondary" href="#about" data-i18n="heroSecondary">About the lab</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="about" class="section">
+      <div class="section-inner">
+        <p class="eyebrow" data-i18n="aboutEyebrow">About</p>
+        <h2 data-i18n="aboutTitle">A home for practical digital projects.</h2>
+        <p data-i18n="aboutText">
+          PJCore Labs is the central brand for projects focused on productivity, legal education, automation, AI tools and personal workstation systems.
+        </p>
+      </div>
+    </section>
+
+    <section id="projects" class="section">
+      <div class="section-inner">
+        <p class="eyebrow" data-i18n="projectsEyebrow">Projects</p>
+        <h2 data-i18n="projectsTitle">Current and future projects</h2>
+
+        <div class="cards">
+          <article class="card">
+            <h3>Workstation OS</h3>
+            <p data-i18n="projectWorkstation">Personal workstation control centre for monitoring, maintenance and productivity.</p>
+          </article>
+
+          <article class="card">
+            <h3>Repositório de Solicitadoria</h3>
+            <p data-i18n="projectSolicitadoria">Educational legal repository built with structure, discipline and public access.</p>
+          </article>
+
+          <article class="card">
+            <h3>Leis UK para Portugueses</h3>
+            <p data-i18n="projectLeisUk">Clear explanations of UK law for Portuguese speakers, with official sources.</p>
+          </article>
+
+          <article class="card">
+            <h3>AI Encyclopedia</h3>
+            <p data-i18n="projectAiEncyclopedia">Directory of useful AI tools, organised for practical daily use.</p>
+          </article>
+
+          <article class="card">
+            <h3>Pajo Organizer</h3>
+            <p data-i18n="projectOrganizer">Future personal organisation system for tasks, notes, ideas and routines.</p>
+          </article>
+
+          <article class="card">
+            <h3>AI Tools</h3>
+            <p data-i18n="projectAiTools">Small AI-powered tools designed to solve real problems without unnecessary complexity.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="values" class="section">
+      <div class="section-inner">
+        <p class="eyebrow" data-i18n="valuesEyebrow">Values</p>
+        <h2 data-i18n="valuesTitle">Simple, useful and honest technology.</h2>
+
+        <div class="values-list">
+          <div>
+            <h3 data-i18n="valuePracticalTitle">Practical</h3>
+            <p data-i18n="valuePracticalText">Tools must solve real problems, not just look impressive.</p>
+          </div>
+
+          <div>
+            <h3 data-i18n="valueTransparentTitle">Transparent</h3>
+            <p data-i18n="valueTransparentText">Projects should be understandable, documented and easy to verify.</p>
+          </div>
+
+          <div>
+            <h3 data-i18n="valueIndependentTitle">Independent</h3>
+            <p data-i18n="valueIndependentText">Built step by step, without depending on hype or shortcuts.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="roadmap" class="section">
+      <div class="section-inner">
+        <p class="eyebrow" data-i18n="roadmapEyebrow">Roadmap</p>
+        <h2 data-i18n="roadmapTitle">Next steps</h2>
+
+        <ol class="roadmap-list">
+          <li data-i18n="roadmapOne">Publish the official PJCore Labs homepage v1.0.</li>
+          <li data-i18n="roadmapTwo">Connect the main projects with dedicated pages.</li>
+          <li data-i18n="roadmapThree">Prepare the brand assets, documentation and project structure.</li>
+          <li data-i18n="roadmapFour">Use pjcorelabs.com as the public centre for future digital products.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="contact" class="section contact-section">
+      <div class="section-inner">
+        <p class="eyebrow" data-i18n="contactEyebrow">Contact</p>
+        <h2 data-i18n="contactTitle">Building quietly. Publishing properly.</h2>
+        <p data-i18n="contactText">PJCore Labs is under active development. More project pages and contact options will be added soon.</p>
+      </div>
+    </section>
   </main>
 
+  <footer class="site-footer">
+    <p>© <span id="year"></span> PJCore Labs. <span data-i18n="footerText">All rights reserved.</span></p>
+  </footer>
+
   <script src="js/language.js"></script>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
