@@ -11,3 +11,4 @@ Criar uma identidade digital central para projetos de software, IA, automação 
 - Manter domínio, marca, scripts e produtos organizados.
 - Separar website, identidade visual, produtos e documentação.
 - Fazer commit antes e depois de alterações importantes.
+- Para fechar atualizações, usar `./scripts/uteis/fechar-atualizacao.sh "Mensagem do commit"` em vez de repetir manualmente `git add`, `git commit` e `git push`.
