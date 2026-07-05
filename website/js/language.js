@@ -43,7 +43,7 @@ const translations = {
 
     contactEyebrow: "Contacto",
     contactTitle: "Construir em silêncio. Publicar em condições.",
-    contactText: "A PJCore Labs está em desenvolvimento ativo. Mais páginas de projetos e opções de contacto serão adicionadas em breve.",
+    contactText: "A PJCore Labs está em desenvolvimento ativo. Para contacto geral, usa o email oficial abaixo.",
 
     footerText: "Todos os direitos reservados."
   },
@@ -92,7 +92,7 @@ const translations = {
 
     contactEyebrow: "Contact",
     contactTitle: "Building quietly. Publishing properly.",
-    contactText: "PJCore Labs is under active development. More project pages and contact options will be added soon.",
+    contactText: "PJCore Labs is under active development. For general contact, use the official email below.",
 
     footerText: "All rights reserved."
   }
