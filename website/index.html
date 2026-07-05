@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>PJCore Labs</title>
@@ -7,10 +7,29 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <header class="site-header">
+    <div class="brand">PJCore Labs</div>
+
+    <nav class="site-nav">
+      <a href="#" data-i18n="navHome">Home</a>
+      <a href="#" data-i18n="navProjects">Projects</a>
+      <a href="#" data-i18n="navRoadmap">Roadmap</a>
+      <a href="#" data-i18n="navAbout">About</a>
+      <a href="#" data-i18n="navContact">Contact</a>
+    </nav>
+
+    <div class="language-switcher">
+      <button data-lang-button="pt">PT</button>
+      <button data-lang-button="en">EN</button>
+    </div>
+  </header>
+
   <main class="hero">
-    <h1>PJCore Labs</h1>
-    <p>Software, IA, automação e ferramentas digitais.</p>
-    <p class="small">Site em construção.</p>
+    <h1 data-i18n="heroTitle">PJCore Labs</h1>
+    <p data-i18n="heroSubtitle">Software, AI, automation and digital tools.</p>
+    <p class="small" data-i18n="heroStatus">Website under construction.</p>
   </main>
+
+  <script src="js/language.js"></script>
 </body>
 </html>
