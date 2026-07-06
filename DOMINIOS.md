@@ -41,3 +41,13 @@ Estado:
   - HTTP: 302 para https://pjcorelabs.com
   - HTTPS: 302 para https://pjcorelabs.com
 - DNS do domínio .co.uk aponta para o serviço de forwarding da Porkbun.
+
+## Contador de visitas
+
+Contador próprio do PJCore Labs via GoatCounter:
+
+- Endpoint: https://pjcorelabs.goatcounter.com/count
+- Script: //gc.zgo.at/count.js
+- Estado: integrado nas páginas HTML dentro de `website/`.
+- Nota: não misturar com o contador do Repositório de Solicitadoria.
+
