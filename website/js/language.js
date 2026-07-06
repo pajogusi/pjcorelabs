@@ -2,6 +2,7 @@ const translations = {
   pt: {
     navHome: "Início",
     navProjects: "Projetos",
+    navCustomApps: "Apps à medida",
     navRoadmap: "Roadmap",
     navAbout: "Sobre",
     navContact: "Contacto",
@@ -9,8 +10,8 @@ const translations = {
     heroEyebrow: "Laboratório digital independente",
     heroTitle: "PJCore Labs",
     heroSubtitle: "Software, IA, automação e ferramentas digitais criadas com propósito prático.",
-    heroPrimary: "Ver projetos",
-    heroSecondary: "Sobre o laboratório",
+    heroPrimary: "Pedir app à medida",
+    heroSecondary: "Ver projetos",
 
     aboutEyebrow: "Sobre",
     aboutTitle: "Uma casa para projetos digitais práticos.",
@@ -189,6 +190,7 @@ const translations = {
   en: {
     navHome: "Home",
     navProjects: "Projects",
+    navCustomApps: "Custom tools",
     navRoadmap: "Roadmap",
     navAbout: "About",
     navContact: "Contact",
@@ -196,8 +198,8 @@ const translations = {
     heroEyebrow: "Independent digital lab",
     heroTitle: "PJCore Labs",
     heroSubtitle: "Software, AI, automation and digital tools built with practical purpose.",
-    heroPrimary: "View projects",
-    heroSecondary: "About the lab",
+    heroPrimary: "Request a custom tool",
+    heroSecondary: "View projects",
 
     aboutEyebrow: "About",
     aboutTitle: "A home for practical digital projects.",
