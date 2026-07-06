@@ -49,7 +49,7 @@ const translations = {
 
     wsEyebrow: "Projeto",
     wsHeroSubtitle: "Sistema pessoal de controlo da estação de trabalho para monitorização, manutenção, produtividade e acesso rápido aos projetos locais.",
-    wsRepoButton: "Ver repositório",
+    wsOpenSiteButton: "Abrir site",
     wsPurposeEyebrow: "Propósito",
     wsPurposeTitle: "Um centro de controlo para a estação de trabalho.",
     wsPurposeText: "O Workstation OS foi pensado para centralizar a gestão diária de uma estação de trabalho Linux pessoal: estado do sistema, ações de manutenção, atalhos para projetos, acesso ao GitHub, ferramentas de produtividade e diagnósticos úteis.",
@@ -223,7 +223,7 @@ const translations = {
 
     wsEyebrow: "Project",
     wsHeroSubtitle: "A personal workstation control system for monitoring, maintenance, productivity and quick access to local projects.",
-    wsRepoButton: "View repository",
+    wsOpenSiteButton: "Open website",
     wsPurposeEyebrow: "Purpose",
     wsPurposeTitle: "A control centre for the workstation.",
     wsPurposeText: "Workstation OS is designed to centralise the daily management of a personal Linux workstation: system status, maintenance actions, project shortcuts, GitHub access, productivity tools and useful diagnostics.",
