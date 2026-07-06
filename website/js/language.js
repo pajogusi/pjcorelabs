@@ -79,6 +79,20 @@ const translations = {
     wsRoadmapFour: "Ligar documentação do projeto, scripts e workflow GitHub.",
     wsRoadmapFive: "Preparar uma identidade de produto mais limpa dentro da PJCore Labs.",
 
+    ppEyebrow: "Projetos",
+    ppHeroTitle: "Ideias em realidade.",
+    ppHeroSubtitle: "A PJCore Labs reúne projetos digitais práticos, ferramentas de aprendizagem, sistemas de automação e produtos experimentais.",
+    ppPortfolioEyebrow: "Portefólio de projetos",
+    ppPortfolioTitle: "Projetos principais",
+    statusDevelopment: "Em desenvolvimento",
+    statusOnline: "Online",
+    statusPlanned: "Planeado",
+    openProject: "Abrir projeto",
+    ppWorkstationText: "Sistema pessoal de controlo da estação de trabalho para monitorização, manutenção, produtividade e acesso aos projetos locais.",
+    ppSolicitadoriaText: "Repositório jurídico educativo independente em português, com aulas estruturadas, fontes legais e progressão académica.",
+    ppLeisUkText: "Guia prático em português sobre leis do Reino Unido e informação pública, com fontes oficiais e avisos claros.",
+    ppAiText: "Coleção organizada de ferramentas de IA úteis, pensada para uso prático, descoberta e consulta rápida.",
+
     footerText: "Todos os direitos reservados."
   },
 
@@ -161,6 +175,20 @@ const translations = {
     wsRoadmapThree: "Add safer maintenance actions with clear confirmations.",
     wsRoadmapFour: "Connect project documentation, scripts and GitHub workflow.",
     wsRoadmapFive: "Prepare a cleaner product identity under PJCore Labs.",
+
+    ppEyebrow: "Projects",
+    ppHeroTitle: "Ideas into reality.",
+    ppHeroSubtitle: "PJCore Labs brings together practical digital projects, learning tools, automation systems and experimental products.",
+    ppPortfolioEyebrow: "Project portfolio",
+    ppPortfolioTitle: "Main projects",
+    statusDevelopment: "In development",
+    statusOnline: "Online",
+    statusPlanned: "Planned",
+    openProject: "Open project",
+    ppWorkstationText: "A personal workstation control system for monitoring, maintenance, productivity and access to local projects.",
+    ppSolicitadoriaText: "An independent educational legal study repository in Portuguese, with structured lessons, legal sources and academic progression.",
+    ppLeisUkText: "A practical Portuguese-language guide to UK laws and public information, with official sources and clear disclaimers.",
+    ppAiText: "A curated collection of useful AI tools, organised for practical use, discovery and quick reference.",
 
     footerText: "All rights reserved."
   }

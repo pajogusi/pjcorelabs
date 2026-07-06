@@ -18,20 +18,25 @@
     </a>
 
     <nav class="site-nav">
-      <a href="../index.html">Home</a>
-      <a href="projects.html">Projects</a>
-      <a href="../index.html#roadmap">Roadmap</a>
-      <a href="../index.html#about">About</a>
-      <a href="../index.html#contact">Contact</a>
+      <a href="../index.html" data-i18n="navHome">Home</a>
+      <a href="projects.html" data-i18n="navProjects">Projects</a>
+      <a href="../index.html#roadmap" data-i18n="navRoadmap">Roadmap</a>
+      <a href="../index.html#about" data-i18n="navAbout">About</a>
+      <a href="../index.html#contact" data-i18n="navContact">Contact</a>
     </nav>
+
+    <div class="language-switcher" aria-label="Language selector">
+      <button data-lang-button="pt">PT</button>
+      <button data-lang-button="en">EN</button>
+    </div>
   </header>
 
   <main>
     <section class="section page-hero">
       <div class="section-inner">
-        <p class="eyebrow">Projects</p>
-        <h1>Ideas into reality.</h1>
-        <p class="hero-subtitle">
+        <p class="eyebrow" data-i18n="ppEyebrow">Projects</p>
+        <h1 data-i18n="ppHeroTitle">Ideas into reality.</h1>
+        <p class="hero-subtitle" data-i18n="ppHeroSubtitle">
           PJCore Labs brings together practical digital projects, learning tools, automation systems and experimental products.
         </p>
       </div>
@@ -39,36 +44,36 @@
 
     <section class="section">
       <div class="section-inner">
-        <p class="eyebrow">Project portfolio</p>
-        <h2>Main projects</h2>
+        <p class="eyebrow" data-i18n="ppPortfolioEyebrow">Project portfolio</p>
+        <h2 data-i18n="ppPortfolioTitle">Main projects</h2>
 
         <div class="project-grid">
           <article class="project-card">
-            <p class="project-status">In development</p>
+            <p class="project-status" data-i18n="statusDevelopment">In development</p>
             <h3>Workstation OS</h3>
-            <p>A personal workstation control system for monitoring, maintenance, productivity and access to local projects.</p>
-            <a class="button secondary" href="workstation-os.html">Open project</a>
+            <p data-i18n="ppWorkstationText">A personal workstation control system for monitoring, maintenance, productivity and access to local projects.</p>
+            <a class="button secondary" href="workstation-os.html" data-i18n="openProject">Open project</a>
           </article>
 
           <article class="project-card">
-            <p class="project-status">Online</p>
+            <p class="project-status" data-i18n="statusOnline">Online</p>
             <h3>Repositório de Solicitadoria</h3>
-            <p>An independent educational legal study repository in Portuguese, with structured lessons, legal sources and academic progression.</p>
-            <a class="button secondary" href="repositorio-solicitadoria.html">Open project</a>
+            <p data-i18n="ppSolicitadoriaText">An independent educational legal study repository in Portuguese, with structured lessons, legal sources and academic progression.</p>
+            <a class="button secondary" href="repositorio-solicitadoria.html" data-i18n="openProject">Open project</a>
           </article>
 
           <article class="project-card">
-            <p class="project-status">Planned</p>
+            <p class="project-status" data-i18n="statusPlanned">Planned</p>
             <h3>Leis UK para Portugueses</h3>
-            <p>A practical Portuguese-language guide to UK laws and public information, with official sources and clear disclaimers.</p>
-            <a class="button secondary" href="leis-uk-para-portugueses.html">Open project</a>
+            <p data-i18n="ppLeisUkText">A practical Portuguese-language guide to UK laws and public information, with official sources and clear disclaimers.</p>
+            <a class="button secondary" href="leis-uk-para-portugueses.html" data-i18n="openProject">Open project</a>
           </article>
 
           <article class="project-card">
-            <p class="project-status">Online</p>
+            <p class="project-status" data-i18n="statusOnline">Online</p>
             <h3>AI Encyclopedia</h3>
-            <p>A curated collection of useful AI tools, organised for practical use, discovery and quick reference.</p>
-            <a class="button secondary" href="ai-encyclopedia.html">Open project</a>
+            <p data-i18n="ppAiText">A curated collection of useful AI tools, organised for practical use, discovery and quick reference.</p>
+            <a class="button secondary" href="ai-encyclopedia.html" data-i18n="openProject">Open project</a>
           </article>
         </div>
       </div>
@@ -76,9 +81,10 @@
   </main>
 
   <footer class="site-footer">
-    <p>© <span id="year"></span> PJCore Labs. All rights reserved.</p>
+    <p>© <span id="year"></span> PJCore Labs. <span data-i18n="footerText">All rights reserved.</span></p>
   </footer>
 
+  <script src="../js/language.js"></script>
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
   </script>
