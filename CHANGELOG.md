@@ -1,5 +1,12 @@
 # Changelog — PJCore Labs
 
+## v1.0.3 — Redirecionamento .co.uk
+
+- Configurado redirecionamento de `pjcorelabs.co.uk` para `https://pjcorelabs.com`.
+- Confirmado funcionamento em HTTP e HTTPS.
+- O domínio `.co.uk` usa URL Forwarding da Porkbun.
+
+
 ## v1.0.2 — Email Profissional
 
 - Configurado email forwarding gratuito na Porkbun.

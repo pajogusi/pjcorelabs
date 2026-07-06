@@ -13,7 +13,7 @@
 
 ## Pendente
 
-- [ ] Apontar pjcorelabs.co.uk para pjcorelabs.com.
+- [x] Apontar pjcorelabs.co.uk para pjcorelabs.com.
 - [x] Criar email geral@pjcorelabs.com.
 - [x] Criar forwarding contact@pjcorelabs.com.
 - [ ] Finalizar identidade visual oficial completa.

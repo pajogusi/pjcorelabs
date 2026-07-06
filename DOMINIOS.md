@@ -31,3 +31,13 @@ Estado:
 
 - hello@pjcorelabs.com
 - support@pjcorelabs.com
+
+
+## Redirecionamento
+
+- pjcorelabs.co.uk redireciona para https://pjcorelabs.com.
+- Redirecionamento configurado via Porkbun URL Forwarding.
+- Estado confirmado:
+  - HTTP: 302 para https://pjcorelabs.com
+  - HTTPS: 302 para https://pjcorelabs.com
+- DNS do domínio .co.uk aponta para o serviço de forwarding da Porkbun.

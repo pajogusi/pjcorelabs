@@ -2,6 +2,10 @@
 
 ## 2026-07-05
 
+- Confirmado redirecionamento de pjcorelabs.co.uk para https://pjcorelabs.com.
+- O domínio .co.uk passou a usar URL Forwarding da Porkbun.
+- Testes confirmaram resposta HTTP/HTTPS com redirect 302 para o domínio principal.
+
 - Configurado email forwarding gratuito na Porkbun:
   - geral@pjcorelabs.com → pajogusi.uk@gmail.com
   - contact@pjcorelabs.com → pajogusi.uk@gmail.com
