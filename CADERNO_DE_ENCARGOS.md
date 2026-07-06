@@ -28,3 +28,20 @@ Criar uma identidade digital central para projetos de software, IA, automação 
   - TODO.md
   - DOMINIOS.md
 
+
+## Regra — Contador de visitas
+
+Todas as novas páginas HTML dentro de `website/` devem incluir o contador GoatCounter próprio do PJCore Labs antes de `</body>`:
+
+```html
+<script data-goatcounter="https://pjcorelabs.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+```
+
+Antes de fechar qualquer atualização que crie ou altere páginas HTML, correr:
+
+```bash
+./scripts/uteis/verificar-contador.sh
+```
+
+Nenhuma nova página pública deve ser publicada sem contador.
