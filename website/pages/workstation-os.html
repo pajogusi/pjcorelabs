@@ -18,58 +18,63 @@
     </a>
 
     <nav class="site-nav">
-      <a href="../index.html">Home</a>
-      <a href="projects.html">Projects</a>
-      <a href="../index.html#roadmap">Roadmap</a>
-      <a href="../index.html#about">About</a>
-      <a href="../index.html#contact">Contact</a>
+      <a href="../index.html" data-i18n="navHome">Home</a>
+      <a href="projects.html" data-i18n="navProjects">Projects</a>
+      <a href="../index.html#roadmap" data-i18n="navRoadmap">Roadmap</a>
+      <a href="../index.html#about" data-i18n="navAbout">About</a>
+      <a href="../index.html#contact" data-i18n="navContact">Contact</a>
     </nav>
+
+    <div class="language-switcher" aria-label="Language selector">
+      <button data-lang-button="pt">PT</button>
+      <button data-lang-button="en">EN</button>
+    </div>
   </header>
 
   <main>
     <section class="section page-hero">
       <div class="section-inner">
-        <p class="eyebrow">Project</p>
+        <p class="eyebrow" data-i18n="wsEyebrow">Project</p>
         <h1>Workstation OS</h1>
-        <p class="hero-subtitle">
+        <p class="hero-subtitle" data-i18n="wsHeroSubtitle">
           A personal workstation control system for monitoring, maintenance, productivity and quick access to local projects.
         </p>
 
         <div class="hero-actions">
-          <a class="button primary" href="https://github.com/pajogusi/workstation-os" target="_blank" rel="noopener">View repository</a>
-          <a class="button secondary" href="projects.html">Back to projects</a>
+          <a class="button primary" href="https://github.com/pajogusi/workstation-os" target="_blank" rel="noopener" data-i18n="wsRepoButton">View repository</a>
+          <a class="button secondary" href="projects.html" data-i18n="backProjects">Back to projects</a>
         </div>
       </div>
     </section>
 
     <section class="section">
       <div class="section-inner project-detail">
-        <p class="eyebrow">Purpose</p>
-        <h2>A control centre for the workstation.</h2>
-        <p>
+        <p class="eyebrow" data-i18n="wsPurposeEyebrow">Purpose</p>
+        <h2 data-i18n="wsPurposeTitle">A control centre for the workstation.</h2>
+        <p data-i18n="wsPurposeText">
           Workstation OS is designed to centralise the daily management of a personal Linux workstation:
           system status, maintenance actions, project shortcuts, GitHub access, productivity tools and useful diagnostics.
         </p>
 
         <div class="info-grid">
           <article>
-            <h3>Status</h3>
-            <p>In active development.</p>
+            <h3 data-i18n="wsStatusTitle">Status</h3>
+            <p data-i18n="wsStatusText">In active development.</p>
           </article>
 
           <article>
-            <h3>Focus</h3>
-            <p>Practical workstation management, not a full operating system replacement.</p>
+            <h3 data-i18n="wsFocusTitle">Focus</h3>
+            <p data-i18n="wsFocusText">Practical workstation management, not a full operating system replacement.</p>
           </article>
 
           <article>
-            <h3>Platform</h3>
-            <p>Linux-first, browser-based dashboard with local tooling.</p>
+            <h3 data-i18n="wsPlatformTitle">Platform</h3>
+            <p data-i18n="wsPlatformText">Linux-first, browser-based dashboard with local tooling.</p>
           </article>
 
           <article>
-            <h3>Direction</h3>
-            <p>Simple interface, clear diagnostics and fast access to important actions.</p>
+            <h3 data-i18n="wsDirectionTitle">Direction</h3>
+            <p data-i18n="wsDirectionText">Simple interface, clear diagnostics and fast access to important actions.</p>
           </article>
         </div>
       </div>
@@ -77,28 +82,28 @@
 
     <section class="section">
       <div class="section-inner">
-        <p class="eyebrow">Core features</p>
-        <h2>What it is being built to do.</h2>
+        <p class="eyebrow" data-i18n="wsFeaturesEyebrow">Core features</p>
+        <h2 data-i18n="wsFeaturesTitle">What it is being built to do.</h2>
 
         <div class="project-grid">
           <article class="project-card">
-            <h3>System status</h3>
-            <p>CPU, RAM, disk, temperature, internet and general machine state in one place.</p>
+            <h3 data-i18n="wsFeatureSystemTitle">System status</h3>
+            <p data-i18n="wsFeatureSystemText">CPU, RAM, disk, temperature, internet and general machine state in one place.</p>
           </article>
 
           <article class="project-card">
-            <h3>Maintenance</h3>
-            <p>Quick access to useful scripts, updates, checks and future repair/diagnostic actions.</p>
+            <h3 data-i18n="wsFeatureMaintenanceTitle">Maintenance</h3>
+            <p data-i18n="wsFeatureMaintenanceText">Quick access to useful scripts, updates, checks and future repair/diagnostic actions.</p>
           </article>
 
           <article class="project-card">
-            <h3>Project launcher</h3>
-            <p>Fast access to active local projects, development folders, GitHub repositories and tools.</p>
+            <h3 data-i18n="wsFeatureLauncherTitle">Project launcher</h3>
+            <p data-i18n="wsFeatureLauncherText">Fast access to active local projects, development folders, GitHub repositories and tools.</p>
           </article>
 
           <article class="project-card">
-            <h3>Plain-language diagnostics</h3>
-            <p>Technical information presented in a way that is useful without being buried in terminal output.</p>
+            <h3 data-i18n="wsFeatureDiagnosticsTitle">Plain-language diagnostics</h3>
+            <p data-i18n="wsFeatureDiagnosticsText">Technical information presented in a way that is useful without being buried in terminal output.</p>
           </article>
         </div>
       </div>
@@ -106,24 +111,25 @@
 
     <section class="section">
       <div class="section-inner">
-        <p class="eyebrow">Roadmap</p>
-        <h2>Next direction.</h2>
+        <p class="eyebrow" data-i18n="wsRoadmapEyebrow">Roadmap</p>
+        <h2 data-i18n="wsRoadmapTitle">Next direction.</h2>
 
         <ol class="roadmap-list">
-          <li>Stabilise the dashboard structure and core system cards.</li>
-          <li>Improve diagnostics and make technical status easier to understand.</li>
-          <li>Add safer maintenance actions with clear confirmations.</li>
-          <li>Connect project documentation, scripts and GitHub workflow.</li>
-          <li>Prepare a cleaner product identity under PJCore Labs.</li>
+          <li data-i18n="wsRoadmapOne">Stabilise the dashboard structure and core system cards.</li>
+          <li data-i18n="wsRoadmapTwo">Improve diagnostics and make technical status easier to understand.</li>
+          <li data-i18n="wsRoadmapThree">Add safer maintenance actions with clear confirmations.</li>
+          <li data-i18n="wsRoadmapFour">Connect project documentation, scripts and GitHub workflow.</li>
+          <li data-i18n="wsRoadmapFive">Prepare a cleaner product identity under PJCore Labs.</li>
         </ol>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>© <span id="year"></span> PJCore Labs. All rights reserved.</p>
+    <p>© <span id="year"></span> PJCore Labs. <span data-i18n="footerText">All rights reserved.</span></p>
   </footer>
 
+  <script src="../js/language.js"></script>
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
   </script>
