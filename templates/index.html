@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Blessed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="app">
+
+    <header class="topo">
+        <button class="icon-btn">☰</button>
+
+        <div class="marca">
+            <strong>BARBEARIA</strong>
+            <span>BLESSED</span>
+        </div>
+
+        <button class="icon-btn">♢</button>
+    </header>
+
+    <main>
+        <section class="titulo-dia">
+            <h1>{{ titulo_dia }}</h1>
+
+            <p>
+                {{ data_selecionada.strftime('%d/%m/%Y') }}
+            </p>
+        </section>
+
+        <nav class="navegacao-dia">
+            <a href="/?data={{ dia_anterior.isoformat() }}" class="seta">‹</a>
+
+            <a href="/" class="botao-hoje">
+                ▣ {{ total_marcacoes }} {% if total_marcacoes == 1 %}marcação{% else %}marcações{% endif %}
+            </a>
+
+            <a href="/?data={{ dia_seguinte.isoformat() }}" class="seta">›</a>
+        </nav>
+
+        <section class="agenda" id="agenda">
+
+            {% for bloco in blocos %}
+
+                {% if bloco.tipo == "disponivel" %}
+
+                <article
+                    class="cartao disponivel"
+                    data-inicio="{{ bloco.inicio.strftime('%H:%M') }}"
+                    data-fim="{{ bloco.fim.strftime('%H:%M') }}"
+                >
+                    <div class="hora">
+                        {{ bloco.inicio.strftime('%H:%M') }}
+                    </div>
+
+                    <div class="conteudo">
+                        <strong>Disponível</strong>
+                        <span>
+                            até {{ bloco.fim.strftime('%H:%M') }}
+                        </span>
+                    </div>
+
+                    <button class="mais-slot">+</button>
+                </article>
+
+                {% else %}
+
+                <article
+                    class="cartao marcacao"
+                    data-inicio="{{ bloco.inicio.strftime('%H:%M') }}"
+                    data-fim="{{ bloco.fim.strftime('%H:%M') }}"
+                >
+                    <div class="hora">
+                        {{ bloco.inicio.strftime('%H:%M') }}
+                    </div>
+
+                    <div class="conteudo">
+                        <strong>{{ bloco.nome }}</strong>
+                        <span>
+                            {{ bloco.servico }}
+                            ·
+                            {{ bloco.fim.strftime('%H:%M') }}
+                        </span>
+                    </div>
+
+                    <div class="estado">
+                        {{ bloco.estado }}
+                    </div>
+
+                    <button class="menu-card">⋮</button>
+                </article>
+
+                {% endif %}
+
+            {% endfor %}
+
+        </section>
+    </main>
+
+    <nav class="barra-inferior">
+        <a href="{{ url_for('home') }}" class="ativo" aria-label="Hoje">
+            <span>⌂</span>
+        </a>
+
+        <button>
+            <span>▦</span>
+            Semana
+        </button>
+
+        <button class="nova">
+            <span>+</span>
+            Nova
+        </button>
+
+        <button>
+            <span>♙</span>
+            Clientes
+        </button>
+
+        <button>
+            <span>•••</span>
+            Mais
+        </button>
+    </nav>
+
+</div>
+</body>
+</html>

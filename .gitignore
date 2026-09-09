@@ -1,0 +1,20 @@
+# Base de dados e dados locais
+*.db
+*.db.*
+
+# Ambiente Python
+.venv/
+__pycache__/
+*.pyc
+
+# Checkpoints/backups locais
+*.funcional-*
+*.esquema-*
+
+# Sistema/editor
+.DS_Store
+*.swp
+*~
+
+# Testes/backups locais
+*.teste-*

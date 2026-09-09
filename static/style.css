@@ -1,0 +1,275 @@
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    min-height: 100%;
+    background: #050505;
+    color: #f5f5f5;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+}
+
+button, a {
+    font: inherit;
+}
+
+button {
+    color: inherit;
+}
+
+.app {
+    width: 100%;
+    max-width: 520px;
+    min-height: 100vh;
+    background: #080808;
+    padding-bottom: 92px;
+}
+
+/* TOPO */
+
+.topo {
+    height: 70px;
+    display: grid;
+    grid-template-columns: 50px 1fr 50px;
+    align-items: center;
+    padding: 0 14px;
+    border-bottom: 1px solid #1c1c1c;
+}
+
+.icon-btn {
+    border: 0;
+    background: transparent;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.marca {
+    text-align: center;
+    line-height: 1;
+}
+
+.marca strong {
+    display: block;
+    font-size: 21px;
+    letter-spacing: 4px;
+}
+
+.marca span {
+    display: block;
+    margin-top: 5px;
+    color: #777;
+    font-size: 9px;
+    letter-spacing: 5px;
+}
+
+/* DIA */
+
+main {
+    padding: 0 16px 28px;
+}
+
+.titulo-dia {
+    padding-top: 22px;
+}
+
+.titulo-dia h1 {
+    margin: 0;
+    font-size: 34px;
+    font-weight: 700;
+}
+
+.titulo-dia p {
+    margin: 7px 0 0;
+    color: #8c8c8c;
+    font-size: 14px;
+}
+
+.navegacao-dia {
+    display: grid;
+    grid-template-columns: 52px 1fr 52px;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.navegacao-dia a {
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    border-radius: 12px;
+}
+
+.seta {
+    background: #141414;
+    color: #eee;
+    font-size: 30px;
+}
+
+.botao-hoje {
+    background: #14243a;
+    color: #8fc3ff;
+    font-weight: 700;
+}
+
+/* AGENDA */
+
+.agenda {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cartao {
+    min-height: 76px;
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 12px;
+    border-radius: 14px;
+}
+
+.marcacao {
+    background: #151515;
+    border: 1px solid #242424;
+}
+
+.disponivel {
+    background: #0b0b0b;
+    border: 1px dashed #3b3b3b;
+}
+
+.hora {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.conteudo {
+    min-width: 0;
+}
+
+.conteudo strong {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 16px;
+}
+
+.conteudo span {
+    display: block;
+    margin-top: 5px;
+    color: #898989;
+    font-size: 13px;
+}
+
+.estado {
+    padding: 6px 9px;
+    border-radius: 20px;
+    background: #252525;
+    color: #aaa;
+    font-size: 11px;
+    text-transform: capitalize;
+}
+
+.mais-slot {
+    width: 38px;
+    height: 38px;
+    border: 1px solid #3b3b3b;
+    border-radius: 50%;
+    background: #151515;
+    color: #67aaff;
+    font-size: 25px;
+    cursor: pointer;
+}
+
+.menu-card {
+    padding: 5px;
+    border: 0;
+    background: transparent;
+    color: #777;
+    font-size: 22px;
+}
+
+/* BARRA INFERIOR */
+
+.barra-inferior {
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 520px;
+    height: 78px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: center;
+    background: rgba(10, 10, 10, .97);
+    border-top: 1px solid #222;
+    z-index: 20;
+}
+
+.barra-inferior button,
+.barra-inferior a {
+    height: 100%;
+    border: 0;
+    background: transparent;
+    color: #777;
+    font-size: 11px;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.barra-inferior button > span,
+.barra-inferior a > span {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 21px;
+}
+
+.barra-inferior .ativo {
+    color: #69aaff;
+}
+
+.barra-inferior .nova {
+    color: #fff;
+    font-weight: 700;
+}
+
+.barra-inferior .nova > span {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: -22px auto 5px;
+    border-radius: 50%;
+    background: #287be0;
+    box-shadow: 0 4px 18px rgba(40, 123, 224, .30);
+    font-size: 30px;
+}
+
+/* ECRÃS MAIORES */
+
+@media (min-width: 700px) {
+    body {
+        padding: 20px 0;
+    }
+
+    .app {
+        min-height: calc(100vh - 40px);
+        border: 1px solid #1d1d1d;
+        border-radius: 22px;
+        overflow: hidden;
+    }
+}
