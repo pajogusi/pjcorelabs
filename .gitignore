@@ -1,20 +1,17 @@
-# Base de dados e dados locais
-*.db
-*.db.*
+# Dados reais da Blessed
+blessed.db
+blessed.db.*
 
 # Ambiente Python
 .venv/
 __pycache__/
 *.pyc
 
-# Checkpoints/backups locais
+# Backups/checkpoints locais
 *.funcional-*
+*.teste-*
 *.esquema-*
 
-# Sistema/editor
-.DS_Store
-*.swp
-*~
-
-# Testes/backups locais
-*.teste-*
+# Segredos
+.env
+.env.*
