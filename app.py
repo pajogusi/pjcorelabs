@@ -154,6 +154,88 @@ def home():
     )
 
 
+@app.route("/semana")
+def semana():
+    data_pedida = request.args.get("data")
+
+    try:
+        referencia = (
+            datetime.strptime(data_pedida, "%Y-%m-%d").date()
+            if data_pedida
+            else date.today()
+        )
+    except ValueError:
+        referencia = date.today()
+
+    inicio_semana = referencia - timedelta(days=referencia.weekday())
+    fim_semana = inicio_semana + timedelta(days=6)
+
+    semana_anterior = inicio_semana - timedelta(days=7)
+    semana_seguinte = inicio_semana + timedelta(days=7)
+
+    con = get_db()
+
+    marcacoes = con.execute("""
+        SELECT
+            m.id,
+            m.inicio,
+            m.duracao_minutos,
+            m.servico,
+            m.estado,
+            c.nome
+        FROM marcacoes AS m
+        JOIN clientes AS c ON c.id = m.cliente_id
+        WHERE substr(m.inicio, 1, 10) BETWEEN ? AND ?
+          AND m.estado != 'cancelada'
+        ORDER BY m.inicio
+    """, (
+        inicio_semana.isoformat(),
+        fim_semana.isoformat()
+    )).fetchall()
+
+    con.close()
+
+    dias = []
+
+    nomes_dias = [
+        "Segunda", "Terça", "Quarta",
+        "Quinta", "Sexta", "Sábado", "Domingo"
+    ]
+
+    for numero in range(7):
+        data_dia = inicio_semana + timedelta(days=numero)
+
+        marcacoes_dia = [
+            {
+                "id": m["id"],
+                "inicio": m["inicio"],
+                "hora": datetime.fromisoformat(
+                    m["inicio"]
+                ).strftime("%H:%M"),
+                "duracao": m["duracao_minutos"],
+                "servico": m["servico"],
+                "estado": m["estado"],
+                "nome": m["nome"],
+            }
+            for m in marcacoes
+            if m["inicio"][:10] == data_dia.isoformat()
+        ]
+
+        dias.append({
+            "data": data_dia.isoformat(),
+            "nome": nomes_dias[numero],
+            "marcacoes": marcacoes_dia
+        })
+
+    return {
+        "inicio": inicio_semana.isoformat(),
+        "fim": fim_semana.isoformat(),
+        "anterior": semana_anterior.isoformat(),
+        "seguinte": semana_seguinte.isoformat(),
+        "dias": dias
+    }
+
+
 @app.route("/marcacoes/nova", methods=["POST"])
 def nova_marcacao():
     nome = request.form["nome"].strip()
