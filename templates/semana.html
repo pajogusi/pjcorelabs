@@ -38,43 +38,49 @@
             <a href="/semana?data={{ semana_seguinte.isoformat() }}" class="seta">›</a>
         </nav>
 
-        <section class="grelha-semana">
+        <section class="agenda-semanal">
 
-            {% for dia in dias %}
-            <article class="coluna-dia">
+            <div class="agenda-cabecalho">
+                <div class="cabecalho-hora"></div>
 
-                <a href="/?data={{ dia.data }}" class="cabecalho-dia">
+                {% for dia in dias %}
+                <div class="agenda-dia">
                     <strong>{{ dia.nome }}</strong>
                     <span>{{ dia.data[8:10] }}/{{ dia.data[5:7] }}</span>
-                </a>
+                </div>
+                {% endfor %}
+            </div>
 
-                <div class="marcacoes-dia">
+            <div class="agenda-corpo">
 
-                    {% if dia.marcacoes %}
+                {% for hora in horas_grelha %}
+                <div class="linha-agenda">
+
+                    <div class="hora-agenda">
+                        {{ hora }}
+                    </div>
+
+                    {% for dia in dias %}
+                    <div class="celula-agenda"
+                         data-data="{{ dia.data }}"
+                         data-hora="{{ hora }}">
 
                         {% for m in dia.marcacoes %}
-                        <div class="cartao-semana marcacao">
-                            <div class="hora">{{ m.hora }}</div>
-
-                            <div class="conteudo">
+                            {% if m.hora == hora %}
+                            <div class="marcacao-grelha">
                                 <strong>{{ m.nome }}</strong>
                                 <span>{{ m.servico }}</span>
                             </div>
-                        </div>
+                            {% endif %}
                         {% endfor %}
 
-                    {% else %}
-
-                        <div class="dia-livre">
-                            Sem marcações
-                        </div>
-
-                    {% endif %}
+                    </div>
+                    {% endfor %}
 
                 </div>
+                {% endfor %}
 
-            </article>
-            {% endfor %}
+            </div>
 
         </section>
 

@@ -227,13 +227,23 @@ def semana():
             "marcacoes": marcacoes_dia
         })
 
+    horas_grelha = []
+
+    hora_atual = datetime.strptime("08:00", "%H:%M")
+    hora_fim = datetime.strptime("23:00", "%H:%M")
+
+    while hora_atual < hora_fim:
+        horas_grelha.append(hora_atual.strftime("%H:%M"))
+        hora_atual += timedelta(minutes=30)
+
     return render_template(
         "semana.html",
         inicio_semana=inicio_semana,
         fim_semana=fim_semana,
         semana_anterior=semana_anterior,
         semana_seguinte=semana_seguinte,
-        dias=dias
+        dias=dias,
+        horas_grelha=horas_grelha
     )
 
 
