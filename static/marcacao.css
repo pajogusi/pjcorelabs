@@ -1,5 +1,12 @@
 /* Modal de marcação — controlos de data e hora claramente separados */
 
+:root {
+    /* Futuramente estes valores serão alteráveis em Definições. */
+    --cor-marcacao-ocupada: #46543c;
+    --cor-marcacao-texto: #ffffff;
+    --cor-marcacao-servico: #d8e4d1;
+}
+
 .navegador-horario {
     display: grid;
     grid-template-columns: 74px minmax(220px, 1fr) 74px;
@@ -85,6 +92,12 @@
     overflow: visible;
 }
 
+/* Cor base das slots ocupadas. As variáveis ficam preparadas para Definições. */
+.marcacao-grelha,
+.marcacao-posicionada {
+    background: var(--cor-marcacao-ocupada);
+}
+
 .marcacao-posicionada {
     position: absolute;
     z-index: 3;
@@ -97,11 +110,13 @@
 }
 
 .marcacao-posicionada strong {
+    color: var(--cor-marcacao-texto);
     font-size: 13px;
     line-height: 1.15;
 }
 
 .marcacao-posicionada span {
+    color: var(--cor-marcacao-servico);
     font-size: 12px;
     line-height: 1.15;
 }
