@@ -105,12 +105,70 @@
     }
 }
 
+/* Telemóvel: modo de recurso. O tablet/desktop mantém a lateral original. */
 @media (max-width: 700px) {
     .estrutura-semana {
         grid-template-columns: 1fr;
+        gap: 4px;
     }
 
     .lateral-marca {
+        display: flex;
+        min-height: 0;
+        width: 100%;
+        padding: 6px 5px 5px;
+        gap: 6px;
+        border-right: 0;
+        border-bottom: 1px solid #262626;
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .marca-lateral {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        min-height: 48px;
+        margin: 0;
+        flex: 0 0 48px;
+    }
+
+    .menu-principal {
+        min-width: 0;
+        flex: 1 1 auto;
+        flex-direction: row;
+        align-items: stretch;
+        gap: 4px;
+        margin: 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .menu-principal::-webkit-scrollbar {
         display: none;
+    }
+
+    .menu-item {
+        width: auto;
+        min-width: 54px;
+        min-height: 48px;
+        padding: 3px 5px;
+        flex: 1 0 54px;
+        flex-direction: column;
+        justify-content: center;
+        gap: 1px;
+        border-radius: 8px;
+        font-size: 9px;
+        line-height: 1.05;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .menu-icone {
+        width: auto;
+        flex: 0 0 auto;
+        font-size: 18px;
+        line-height: 1;
     }
 }
