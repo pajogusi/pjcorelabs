@@ -1,0 +1,100 @@
+/* Modal de marcação — controlos de data e hora claramente separados */
+
+.navegador-horario {
+    display: grid;
+    grid-template-columns: 74px minmax(220px, 1fr) 74px;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.mudar-dia {
+    min-height: 44px;
+    padding: 7px 8px;
+    border: 1px solid #3d5873;
+    border-radius: 10px;
+    background: #17283a;
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.mudar-dia:hover,
+.mudar-dia:focus-visible {
+    background: #203a55;
+    border-color: #5c88b2;
+}
+
+.horario-centro {
+    min-width: 0;
+    text-align: center;
+}
+
+#horarioMarcacao {
+    margin: 0 0 9px;
+    color: #f5f5f5;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.ajuste-hora {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+}
+
+.hora-destaque {
+    min-width: 72px;
+    color: #fff;
+    font-size: 24px;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: .5px;
+}
+
+.mudar-hora {
+    min-height: 40px;
+    padding: 7px 12px;
+    border: 1px solid #466b91;
+    border-radius: 9px;
+    background: #1b3550;
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.mudar-hora:hover,
+.mudar-hora:focus-visible {
+    background: #284d72;
+    border-color: #6b9dca;
+}
+
+.estado-disponibilidade {
+    margin-top: 9px;
+}
+
+@media (max-width: 620px) {
+    .navegador-horario {
+        grid-template-columns: 58px minmax(180px, 1fr) 58px;
+        gap: 7px;
+    }
+
+    .mudar-dia {
+        font-size: 11px;
+        padding: 6px 4px;
+    }
+
+    .mudar-hora {
+        padding: 7px 8px;
+        font-size: 12px;
+    }
+
+    .hora-destaque {
+        min-width: 62px;
+        font-size: 21px;
+    }
+}
