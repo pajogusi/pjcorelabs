@@ -31,6 +31,11 @@ def concretizar_marcacoes_vencidas(con):
 
 
 @app.route("/")
+def entrada():
+    return render_template("entrada.html")
+
+
+@app.route("/hoje")
 def home():
     data_pedida = request.args.get("data")
     try:
