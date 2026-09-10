@@ -12,9 +12,7 @@
 <div class="app app-semana">
     <div class="estrutura-semana">
         <aside class="lateral-marca">
-            <div class="marca marca-lateral">
-                <img src="{{ url_for('static', filename='blessed-logo.png') }}" alt="Barbearia Blessed" class="logo-blessed">
-            </div>
+            <div class="marca marca-lateral"><img src="{{ url_for('static', filename='blessed-logo.png') }}" alt="Barbearia Blessed" class="logo-blessed"></div>
             <nav class="menu-principal">
                 <a href="/semana" class="menu-item ativo" title="Agenda"><span class="menu-icone">▣</span><span>Agenda</span></a>
                 <button class="menu-item" type="button" title="Clientes"><span class="menu-icone">♙</span><span>Clientes</span></button>
@@ -27,19 +25,14 @@
         <main class="main-semana">
             <section class="titulo-semana">
                 <a href="/semana?data={{ semana_anterior.isoformat() }}" class="seta-semana" title="Semana anterior">‹</a>
-                <div class="identificacao-semana">
-                    <h1>Semana</h1>
-                    <span>{{ inicio_semana.strftime('%d/%m') }} — {{ fim_semana.strftime('%d/%m/%Y') }}</span>
-                </div>
+                <div class="identificacao-semana"><h1>Semana</h1><span>{{ inicio_semana.strftime('%d/%m') }} — {{ fim_semana.strftime('%d/%m/%Y') }}</span></div>
                 <a href="/semana?data={{ semana_seguinte.isoformat() }}" class="seta-semana" title="Semana seguinte">›</a>
             </section>
 
             <section class="agenda-semanal">
                 <div class="agenda-cabecalho">
                     <div class="cabecalho-hora"></div>
-                    {% for dia in dias %}
-                    <div class="agenda-dia"><strong>{{ dia.nome }}</strong><span>{{ dia.data[8:10] }}/{{ dia.data[5:7] }}</span></div>
-                    {% endfor %}
+                    {% for dia in dias %}<div class="agenda-dia"><strong>{{ dia.nome }}</strong><span>{{ dia.data[8:10] }}/{{ dia.data[5:7] }}</span></div>{% endfor %}
                 </div>
                 <div class="agenda-corpo">
                     {% for hora in horas_grelha %}
@@ -47,11 +40,15 @@
                         <div class="hora-agenda">{{ hora }}</div>
                         {% for dia in dias %}
                         <div class="celula-agenda" data-data="{{ dia.data }}" data-hora="{{ hora }}" role="button" tabindex="0" title="Nova marcação">
-                            {% for m in dia.marcacoes %}
-                                {% if m.hora_base == hora %}
-                                <div class="marcacao-grelha marcacao-posicionada" style="--deslocamento: {{ m.deslocamento }}; --duracao: {{ m.duracao }};" title="{{ m.hora }} · {{ m.nome }} · {{ m.servico }}"><strong>{{ m.hora }} · {{ m.nome }}</strong><span>{{ m.servico }}</span></div>
-                                {% endif %}
-                            {% endfor %}
+                            {% for m in dia.marcacoes %}{% if m.hora_base == hora %}
+                            <div class="marcacao-grelha marcacao-posicionada estado-{{ m.estado }}"
+                                 style="--deslocamento: {{ m.deslocamento }}; --duracao: {{ m.duracao }};"
+                                 data-marcacao-id="{{ m.id }}" data-nome="{{ m.nome }}" data-servico="{{ m.servico }}"
+                                 data-hora-real="{{ m.hora }}" data-data-real="{{ m.inicio[:10] }}" data-estado="{{ m.estado }}"
+                                 title="{{ m.hora }} · {{ m.nome }} · {{ m.servico }} · {{ m.estado }}">
+                                <strong>{{ m.hora }} · {{ m.nome }}</strong><span>{{ m.servico }}</span>
+                            </div>
+                            {% endif %}{% endfor %}
                         </div>
                         {% endfor %}
                     </div>
@@ -65,141 +62,54 @@
 <div class="modal-marcacao" id="modalMarcacao" hidden>
     <div class="modal-fundo" data-fechar-modal></div>
     <section class="form-marcacao" role="dialog" aria-modal="true" aria-labelledby="tituloNovaMarcacao">
-        <div class="form-marcacao-topo">
-            <div>
-                <h2 id="tituloNovaMarcacao">Nova marcação</h2>
-                <div class="navegador-horario">
-                    <button type="button" class="mudar-dia" id="diaAnterior" title="Dia anterior">‹ Dia</button>
-                    <div class="horario-centro">
-                        <p id="horarioMarcacao"></p>
-                        <div class="ajuste-hora">
-                            <button type="button" class="mudar-hora" id="horaAnterior">−15 min</button>
-                            <strong class="hora-destaque" id="horaDestaque"></strong>
-                            <button type="button" class="mudar-hora" id="horaSeguinte">+15 min</button>
-                        </div>
-                        <div id="estadoDisponibilidade" class="estado-disponibilidade">A verificar...</div>
-                    </div>
-                    <button type="button" class="mudar-dia" id="diaSeguinte" title="Dia seguinte">Dia ›</button>
-                </div>
-            </div>
-            <button type="button" class="fechar-modal" data-fechar-modal aria-label="Fechar">×</button>
-        </div>
-
+        <div class="form-marcacao-topo"><div><h2 id="tituloNovaMarcacao">Nova marcação</h2><div class="navegador-horario">
+            <button type="button" class="mudar-dia" id="diaAnterior">‹ Dia</button>
+            <div class="horario-centro"><p id="horarioMarcacao"></p><div class="ajuste-hora"><button type="button" class="mudar-hora" id="horaAnterior">−15 min</button><strong class="hora-destaque" id="horaDestaque"></strong><button type="button" class="mudar-hora" id="horaSeguinte">+15 min</button></div><div id="estadoDisponibilidade" class="estado-disponibilidade">A verificar...</div></div>
+            <button type="button" class="mudar-dia" id="diaSeguinte">Dia ›</button>
+        </div></div><button type="button" class="fechar-modal" data-fechar-modal aria-label="Fechar">×</button></div>
         <form id="formNovaMarcacao" method="post" action="/marcacoes/nova">
-            <input type="hidden" id="dataMarcacao" name="data">
-            <input type="hidden" id="horaMarcacao" name="hora">
-            <input type="hidden" id="inicioMarcacao" name="inicio">
+            <input type="hidden" id="dataMarcacao" name="data"><input type="hidden" id="horaMarcacao" name="hora"><input type="hidden" id="inicioMarcacao" name="inicio">
             <label>Cliente<input type="text" name="nome" autocomplete="off" placeholder="Nome do cliente" required></label>
             <label>Telefone<input type="tel" name="telefone" autocomplete="tel" placeholder="Número de telefone" required></label>
-            <label>Serviço
-                <select name="servico" required>
-                    <option value="">Escolher serviço</option>
-                    <option>Corte</option><option>Barba</option><option>Corte + Barba</option>
-                </select>
-            </label>
-            <label>Duração
-                <select name="duracao">
-                    <option value="15">15 minutos</option><option value="30" selected>30 minutos</option><option value="60">60 minutos</option><option value="90">90 minutos</option>
-                </select>
-            </label>
-            <div class="acoes-form-marcacao">
-                <button type="button" class="botao-cancelar" data-fechar-modal>Cancelar</button>
-                <button type="submit" class="botao-marcar">Marcar</button>
+            <label>Serviço<select name="servico" required><option value="">Escolher serviço</option><option>Corte</option><option>Barba</option><option>Corte + Barba</option></select></label>
+            <label>Duração<select name="duracao"><option value="15">15 minutos</option><option value="30" selected>30 minutos</option><option value="60">60 minutos</option><option value="90">90 minutos</option></select></label>
+            <div class="acoes-form-marcacao"><button type="button" class="botao-cancelar" data-fechar-modal>Cancelar</button><button type="submit" class="botao-marcar">Marcar</button></div>
+        </form>
+    </section>
+</div>
+
+<div class="modal-marcacao" id="modalEstado" hidden>
+    <div class="modal-fundo" data-fechar-estado></div>
+    <section class="form-marcacao modal-estado-conteudo" role="dialog" aria-modal="true" aria-labelledby="tituloEstadoMarcacao">
+        <div class="form-marcacao-topo"><div><h2 id="tituloEstadoMarcacao">Marcação</h2><p id="resumoEstadoMarcacao" class="resumo-estado"></p></div><button type="button" class="fechar-modal" data-fechar-estado aria-label="Fechar">×</button></div>
+        <p class="estado-atual">Estado atual: <strong id="estadoAtualMarcacao"></strong></p>
+        <form id="formEstadoMarcacao" method="post">
+            <div class="opcoes-estado">
+                <button type="submit" name="estado" value="concluída" class="botao-estado">Concretizada</button>
+                <button type="submit" name="estado" value="cancelada" class="botao-estado">Cancelada</button>
+                <button type="submit" name="estado" value="faltou" class="botao-estado">Faltou</button>
+                <button type="submit" name="estado" value="marcada" class="botao-estado botao-estado-secundario">Manter agendada</button>
             </div>
         </form>
+        <p class="nota-historico">A marcação não é apagada. O estado fica guardado no histórico do cliente.</p>
     </section>
 </div>
 
 <script>
 const modal = document.getElementById('modalMarcacao');
+const modalEstado = document.getElementById('modalEstado');
 const campoData = document.getElementById('dataMarcacao');
 const campoHora = document.getElementById('horaMarcacao');
 const campoInicio = document.getElementById('inicioMarcacao');
 
-function formatarDataMarcacao() {
-    const data = campoData.value;
-    const hora = campoHora.value;
-    if (!data || !hora) return;
-    const p = data.split('-');
-    const nomes = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
-    const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-    document.getElementById('horarioMarcacao').textContent = nomes[d.getDay()] + ' · ' + p[2] + '/' + p[1] + '/' + p[0];
-    document.getElementById('horaDestaque').textContent = hora;
-    campoInicio.value = data + 'T' + hora;
-}
+function formatarDataMarcacao(){const data=campoData.value,hora=campoHora.value;if(!data||!hora)return;const p=data.split('-'),nomes=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];const d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));document.getElementById('horarioMarcacao').textContent=nomes[d.getDay()]+' · '+p[2]+'/'+p[1]+'/'+p[0];document.getElementById('horaDestaque').textContent=hora;campoInicio.value=data+'T'+hora;}
+async function verificarDisponibilidade(){const duracao=document.querySelector('#formNovaMarcacao [name="duracao"]').value,estado=document.getElementById('estadoDisponibilidade'),marcar=document.querySelector('.botao-marcar');estado.className='estado-disponibilidade';estado.textContent='A verificar...';marcar.disabled=true;try{const params=new URLSearchParams({data:campoData.value,hora:campoHora.value,duracao:duracao});const resposta=await fetch('/api/disponibilidade?'+params.toString()),resultado=await resposta.json();if(!resposta.ok||!resultado.ok)throw new Error();if(resultado.disponivel){estado.className='estado-disponibilidade disponibilidade-livre';estado.textContent='✓ Disponível · '+resultado.inicio+'–'+resultado.fim;marcar.disabled=false;}else{estado.className='estado-disponibilidade disponibilidade-ocupada';if(resultado.conflitos&&resultado.conflitos.length){const c=resultado.conflitos[0];estado.textContent='⚠ Ocupado · '+c.inicio+'–'+c.fim+' · '+c.nome+' · '+c.servico;}else estado.textContent='⚠ Horário indisponível';}}catch(e){estado.className='estado-disponibilidade disponibilidade-ocupada';estado.textContent='⚠ Não foi possível verificar o horário';}}
+function atualizarMarcacao(){formatarDataMarcacao();verificarDisponibilidade();}
+function mudarDiaMarcacao(diferenca){const p=campoData.value.split('-'),d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));d.setDate(d.getDate()+diferenca);campoData.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');atualizarMarcacao();}
+function mudarHoraMarcacao(minutos){const p=campoData.value.split('-'),h=campoHora.value.split(':'),d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]),Number(h[0]),Number(h[1]));d.setMinutes(d.getMinutes()+minutos);campoData.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');campoHora.value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');atualizarMarcacao();}
 
-async function verificarDisponibilidade() {
-    const duracao = document.querySelector('#formNovaMarcacao [name="duracao"]').value;
-    const estado = document.getElementById('estadoDisponibilidade');
-    const marcar = document.querySelector('.botao-marcar');
-    estado.className = 'estado-disponibilidade';
-    estado.textContent = 'A verificar...';
-    marcar.disabled = true;
-    try {
-        const params = new URLSearchParams({data: campoData.value, hora: campoHora.value, duracao: duracao});
-        const resposta = await fetch('/api/disponibilidade?' + params.toString());
-        const resultado = await resposta.json();
-        if (!resposta.ok || !resultado.ok) throw new Error();
-        if (resultado.disponivel) {
-            estado.className = 'estado-disponibilidade disponibilidade-livre';
-            estado.textContent = '✓ Disponível · ' + resultado.inicio + '–' + resultado.fim;
-            marcar.disabled = false;
-        } else {
-            estado.className = 'estado-disponibilidade disponibilidade-ocupada';
-            if (resultado.conflitos && resultado.conflitos.length) {
-                const c = resultado.conflitos[0];
-                estado.textContent = '⚠ Ocupado · ' + c.inicio + '–' + c.fim + ' · ' + c.nome + ' · ' + c.servico;
-            } else {
-                estado.textContent = '⚠ Horário indisponível';
-            }
-        }
-    } catch (erro) {
-        estado.className = 'estado-disponibilidade disponibilidade-ocupada';
-        estado.textContent = '⚠ Não foi possível verificar o horário';
-    }
-}
-
-function atualizarMarcacao() {
-    formatarDataMarcacao();
-    verificarDisponibilidade();
-}
-
-function mudarDiaMarcacao(diferenca) {
-    const p = campoData.value.split('-');
-    const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-    d.setDate(d.getDate() + diferenca);
-    campoData.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-    atualizarMarcacao();
-}
-
-function mudarHoraMarcacao(minutos) {
-    const p = campoData.value.split('-');
-    const h = campoHora.value.split(':');
-    const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), Number(h[0]), Number(h[1]));
-    d.setMinutes(d.getMinutes() + minutos);
-    campoData.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-    campoHora.value = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
-    atualizarMarcacao();
-}
-
-document.querySelectorAll('.celula-agenda').forEach(function(celula) {
-    celula.addEventListener('click', function(evento) {
-        if (evento.target.closest('.marcacao-grelha')) return;
-        campoData.value = celula.dataset.data;
-        campoHora.value = celula.dataset.hora;
-        atualizarMarcacao();
-        modal.hidden = false;
-        setTimeout(function(){ modal.querySelector('input[name="nome"]').focus(); }, 50);
-    });
-});
-
-document.getElementById('diaAnterior').addEventListener('click', function(){ mudarDiaMarcacao(-1); });
-document.getElementById('diaSeguinte').addEventListener('click', function(){ mudarDiaMarcacao(1); });
-document.getElementById('horaAnterior').addEventListener('click', function(){ mudarHoraMarcacao(-15); });
-document.getElementById('horaSeguinte').addEventListener('click', function(){ mudarHoraMarcacao(15); });
-document.querySelector('#formNovaMarcacao [name="duracao"]').addEventListener('change', atualizarMarcacao);
-document.querySelectorAll('[data-fechar-modal]').forEach(function(botao){ botao.addEventListener('click', function(){ modal.hidden = true; }); });
-document.addEventListener('keydown', function(evento){ if (evento.key === 'Escape') modal.hidden = true; });
+document.querySelectorAll('.celula-agenda').forEach(function(celula){celula.addEventListener('click',function(evento){const marcacao=evento.target.closest('.marcacao-grelha');if(marcacao){evento.stopPropagation();document.getElementById('resumoEstadoMarcacao').textContent=marcacao.dataset.dataReal+' · '+marcacao.dataset.horaReal+' · '+marcacao.dataset.nome+' · '+marcacao.dataset.servico;document.getElementById('estadoAtualMarcacao').textContent=marcacao.dataset.estado;document.getElementById('formEstadoMarcacao').action='/marcacoes/'+marcacao.dataset.marcacaoId+'/estado';modalEstado.hidden=false;return;}campoData.value=celula.dataset.data;campoHora.value=celula.dataset.hora;atualizarMarcacao();modal.hidden=false;setTimeout(function(){modal.querySelector('input[name="nome"]').focus();},50);});});
+document.getElementById('diaAnterior').addEventListener('click',function(){mudarDiaMarcacao(-1);});document.getElementById('diaSeguinte').addEventListener('click',function(){mudarDiaMarcacao(1);});document.getElementById('horaAnterior').addEventListener('click',function(){mudarHoraMarcacao(-15);});document.getElementById('horaSeguinte').addEventListener('click',function(){mudarHoraMarcacao(15);});document.querySelector('#formNovaMarcacao [name="duracao"]').addEventListener('change',atualizarMarcacao);document.querySelectorAll('[data-fechar-modal]').forEach(function(b){b.addEventListener('click',function(){modal.hidden=true;});});document.querySelectorAll('[data-fechar-estado]').forEach(function(b){b.addEventListener('click',function(){modalEstado.hidden=true;});});document.addEventListener('keydown',function(e){if(e.key==='Escape'){modal.hidden=true;modalEstado.hidden=true;}});
 </script>
 </body>
 </html>
