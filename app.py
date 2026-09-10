@@ -247,6 +247,95 @@ def semana():
     )
 
 
+@app.route("/api/disponibilidade")
+def disponibilidade():
+    data_pedida = request.args.get("data", "").strip()
+    hora_pedida = request.args.get("hora", "").strip()
+
+    try:
+        duracao = int(request.args.get("duracao", 30))
+
+        if duracao not in (15, 30, 60, 90):
+            raise ValueError
+
+        inicio = datetime.fromisoformat(
+            f"{data_pedida}T{hora_pedida}"
+        )
+
+    except (ValueError, TypeError):
+        return {
+            "ok": False,
+            "erro": "Data, hora ou duração inválida"
+        }, 400
+
+    fim = inicio + timedelta(minutes=duracao)
+
+    # Horário atualmente confirmado para a agenda Blessed.
+    abertura = datetime.combine(
+        inicio.date(),
+        datetime.strptime("08:00", "%H:%M").time()
+    )
+
+    fecho = datetime.combine(
+        inicio.date(),
+        datetime.strptime("23:00", "%H:%M").time()
+    )
+
+    if inicio < abertura or fim > fecho:
+        return {
+            "ok": True,
+            "disponivel": False,
+            "motivo": "fora_horario",
+            "inicio": inicio.strftime("%H:%M"),
+            "fim": fim.strftime("%H:%M")
+        }
+
+    con = get_db()
+
+    marcacoes = con.execute("""
+        SELECT
+            m.id,
+            m.inicio,
+            m.duracao_minutos,
+            m.servico,
+            c.nome
+        FROM marcacoes AS m
+        JOIN clientes AS c ON c.id = m.cliente_id
+        WHERE substr(m.inicio, 1, 10) = ?
+          AND m.estado != 'cancelada'
+        ORDER BY m.inicio
+    """, (inicio.date().isoformat(),)).fetchall()
+
+    con.close()
+
+    conflitos = []
+
+    for m in marcacoes:
+        existente_inicio = datetime.fromisoformat(m["inicio"])
+        existente_fim = existente_inicio + timedelta(
+            minutes=m["duracao_minutos"]
+        )
+
+        if inicio < existente_fim and fim > existente_inicio:
+            conflitos.append({
+                "id": m["id"],
+                "nome": m["nome"],
+                "servico": m["servico"],
+                "inicio": existente_inicio.strftime("%H:%M"),
+                "fim": existente_fim.strftime("%H:%M")
+            })
+
+    return {
+        "ok": True,
+        "disponivel": len(conflitos) == 0,
+        "data": inicio.date().isoformat(),
+        "inicio": inicio.strftime("%H:%M"),
+        "fim": fim.strftime("%H:%M"),
+        "duracao": duracao,
+        "conflitos": conflitos
+    }
+
+
 @app.route("/marcacoes/nova", methods=["POST"])
 def nova_marcacao():
     nome = request.form["nome"].strip()

@@ -1056,3 +1056,191 @@ body {
         font-size: 14px;
     }
 }
+
+/* INTERAÇÃO COM ESPAÇO LIVRE */
+.celula-agenda {
+    cursor: pointer;
+}
+
+.celula-agenda:hover {
+    background: #111923;
+}
+
+.celula-agenda.slot-selecionado {
+    background: #1b3045;
+}
+
+/* FORMULÁRIO RÁPIDO DE MARCAÇÃO */
+.modal-marcacao[hidden] {
+    display: none;
+}
+
+.modal-marcacao {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-fundo {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .72);
+}
+
+.form-marcacao {
+    position: relative;
+    width: min(460px, 100%);
+    background: #111;
+    border: 1px solid #383838;
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 18px 60px rgba(0,0,0,.55);
+}
+
+.form-marcacao-topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.form-marcacao h2 {
+    margin: 0 0 5px;
+    font-size: 25px;
+}
+
+.form-marcacao-topo p {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #d5e6f7;
+}
+
+.fechar-modal {
+    border: 0;
+    background: transparent;
+    color: #fff;
+    font-size: 30px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.form-marcacao form {
+    display: grid;
+    gap: 15px;
+}
+
+.form-marcacao label {
+    display: grid;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #e7e7e7;
+}
+
+.form-marcacao input,
+.form-marcacao select {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 48px;
+    border: 1px solid #414141;
+    border-radius: 9px;
+    background: #090909;
+    color: #fff;
+    padding: 0 12px;
+    font: inherit;
+    font-size: 16px;
+}
+
+.form-marcacao input:focus,
+.form-marcacao select:focus {
+    outline: 2px solid #557da4;
+    outline-offset: 1px;
+}
+
+.acoes-form-marcacao {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.acoes-form-marcacao button {
+    min-height: 50px;
+    border-radius: 9px;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.botao-cancelar {
+    background: #191919;
+    border: 1px solid #3c3c3c;
+    color: #fff;
+}
+
+.botao-marcar {
+    background: #23486b;
+    border: 1px solid #47739b;
+    color: #fff;
+}
+
+/* NAVEGAÇÃO E DISPONIBILIDADE DA NOVA MARCAÇÃO */
+.navegador-horario {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.horario-centro {
+    flex: 1;
+    text-align: center;
+}
+
+.horario-centro p {
+    margin: 0;
+}
+
+.mudar-dia {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    border: 1px solid #41566b;
+    border-radius: 8px;
+    background: #17232f;
+    color: #fff;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.mudar-dia:hover {
+    background: #243a4e;
+}
+
+.estado-disponibilidade {
+    min-height: 20px;
+    margin-top: 5px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.disponibilidade-livre {
+    color: #8fd7a7;
+}
+
+.disponibilidade-ocupada {
+    color: #ffb1a8;
+}
+
+.botao-marcar:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
