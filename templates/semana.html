@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Semana — Blessed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="app app-semana">
+
+    <header class="topo">
+        <button class="icon-btn">☰</button>
+
+        <div class="marca">
+            <strong>BARBEARIA</strong>
+            <span>BLESSED</span>
+        </div>
+
+        <button class="icon-btn">♢</button>
+    </header>
+
+    <main class="main-semana">
+
+        <section class="titulo-dia">
+            <h1>Semana</h1>
+            <p>{{ inicio_semana.strftime('%d/%m') }} — {{ fim_semana.strftime('%d/%m/%Y') }}</p>
+        </section>
+
+        <nav class="navegacao-dia">
+            <a href="/semana?data={{ semana_anterior.isoformat() }}" class="seta">‹</a>
+
+            <a href="/semana" class="botao-hoje">
+                Esta semana
+            </a>
+
+            <a href="/semana?data={{ semana_seguinte.isoformat() }}" class="seta">›</a>
+        </nav>
+
+        <section class="grelha-semana">
+
+            {% for dia in dias %}
+            <article class="coluna-dia">
+
+                <a href="/?data={{ dia.data }}" class="cabecalho-dia">
+                    <strong>{{ dia.nome }}</strong>
+                    <span>{{ dia.data[8:10] }}/{{ dia.data[5:7] }}</span>
+                </a>
+
+                <div class="marcacoes-dia">
+
+                    {% if dia.marcacoes %}
+
+                        {% for m in dia.marcacoes %}
+                        <div class="cartao-semana marcacao">
+                            <div class="hora">{{ m.hora }}</div>
+
+                            <div class="conteudo">
+                                <strong>{{ m.nome }}</strong>
+                                <span>{{ m.servico }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                    {% else %}
+
+                        <div class="dia-livre">
+                            Sem marcações
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            </article>
+            {% endfor %}
+
+        </section>
+
+    </main>
+
+</div>
+</body>
+</html>

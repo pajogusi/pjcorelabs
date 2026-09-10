@@ -227,13 +227,14 @@ def semana():
             "marcacoes": marcacoes_dia
         })
 
-    return {
-        "inicio": inicio_semana.isoformat(),
-        "fim": fim_semana.isoformat(),
-        "anterior": semana_anterior.isoformat(),
-        "seguinte": semana_seguinte.isoformat(),
-        "dias": dias
-    }
+    return render_template(
+        "semana.html",
+        inicio_semana=inicio_semana,
+        fim_semana=fim_semana,
+        semana_anterior=semana_anterior,
+        semana_seguinte=semana_seguinte,
+        dias=dias
+    )
 
 
 @app.route("/marcacoes/nova", methods=["POST"])
