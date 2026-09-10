@@ -746,3 +746,116 @@ body {
 .identificacao-semana {
     justify-content: center;
 }
+
+/* ESTRUTURA SEMANAL — MARCA NA LATERAL */
+.estrutura-semana {
+    display: grid;
+    grid-template-columns: 105px minmax(0, 1fr);
+    gap: 14px;
+    width: 100%;
+    min-height: 100vh;
+}
+
+.lateral-marca {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    padding-top: 18px;
+    border-right: 1px solid #262626;
+}
+
+.marca-lateral {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.marca-lateral strong {
+    font-size: 11px;
+    letter-spacing: 1px;
+}
+
+.marca-lateral span {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.estrutura-semana .main-semana {
+    min-width: 0;
+    padding-left: 0;
+    padding-right: 10px;
+}
+
+/* Em ecrãs pequenos a lateral deixa de roubar largura */
+@media (max-width: 700px) {
+    .estrutura-semana {
+        grid-template-columns: 1fr;
+    }
+
+    .lateral-marca {
+        display: none;
+    }
+
+    .estrutura-semana .main-semana {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+}
+
+/* LATERAL PRINCIPAL DA APP BLESSED */
+.estrutura-semana {
+    grid-template-columns: 170px minmax(0, 1fr);
+    gap: 12px;
+}
+
+.lateral-marca {
+    padding: 18px 10px;
+    gap: 12px;
+}
+
+/* Espaço reservado para o logótipo redondo */
+.marca-lateral {
+    width: 132px;
+    height: 132px;
+    min-height: 132px;
+    border: 1px solid #343434;
+    border-radius: 50%;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+/* Botões de navegação mais compactos */
+.lateral-marca .icon-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 10px;
+    font-size: 20px;
+}
+
+/* A lateral fica disponível para a navegação da aplicação */
+.lateral-marca {
+    min-height: calc(100vh - 20px);
+}
+
+@media (max-width: 900px) {
+    .estrutura-semana {
+        grid-template-columns: 145px minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .marca-lateral {
+        width: 112px;
+        height: 112px;
+        min-height: 112px;
+    }
+}
+
+@media (max-width: 700px) {
+    .estrutura-semana {
+        grid-template-columns: 1fr;
+    }
+}

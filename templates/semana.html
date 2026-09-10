@@ -10,18 +10,22 @@
 <body>
 <div class="app app-semana">
 
-    <header class="topo">
-        <button class="icon-btn">☰</button>
+    <div class="estrutura-semana">
 
-        <div class="marca">
-            <strong>BARBEARIA</strong>
-            <span>BLESSED</span>
-        </div>
+        <aside class="lateral-marca">
 
-        <button class="icon-btn">♢</button>
-    </header>
+            <div class="marca marca-lateral">
+                <strong>BARBEARIA</strong>
+                <span>BLESSED</span>
+            </div>
 
-    <main class="main-semana">
+            <button class="icon-btn" title="Menu">☰</button>
+
+            <button class="icon-btn" title="Opções">♢</button>
+
+        </aside>
+
+        <main class="main-semana">
 
         <section class="titulo-semana">
 
@@ -95,18 +99,9 @@
         </section>
 
 
+        </main>
 
-            <aside class="barra-lateral direita">
-                <a href="/semana?data={{ semana_seguinte.isoformat() }}"
-                   class="botao-lateral"
-                   title="Semana seguinte">
-                    ›
-                </a>
-            </aside>
-
-        </div>
-
-    </main>
+    </div>
 
 </div>
 </body>
