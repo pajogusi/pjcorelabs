@@ -859,3 +859,80 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+/* NAVEGAÇÃO PRINCIPAL — BLESSED */
+.menu-principal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 7px;
+    margin-top: 4px;
+}
+
+.menu-item {
+    width: 100%;
+    height: 44px;
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    align-items: center;
+    gap: 7px;
+
+    padding: 0 9px;
+
+    border: 1px solid transparent;
+    border-radius: 9px;
+
+    background: transparent;
+    color: #e8e8e8;
+
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    text-decoration: none;
+
+    cursor: pointer;
+}
+
+.menu-icone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 30px;
+    height: 30px;
+
+    font-size: 19px;
+    color: #d9e8f7;
+}
+
+.menu-item:hover {
+    background: #151515;
+    border-color: #303030;
+}
+
+.menu-item.ativo {
+    background: #1b2633;
+    border-color: #3b5875;
+    color: #ffffff;
+}
+
+.menu-item.ativo .menu-icone {
+    color: #ffffff;
+}
+
+/* Tablet um pouco mais estreito */
+@media (max-width: 900px) {
+    .menu-item {
+        height: 42px;
+        grid-template-columns: 29px 1fr;
+        padding: 0 6px;
+        font-size: 12px;
+    }
+
+    .menu-icone {
+        width: 27px;
+        height: 27px;
+        font-size: 18px;
+    }
+}
