@@ -7,138 +7,41 @@
     --cor-marcacao-servico: #d8e4d1;
 }
 
-.navegador-horario {
-    display: grid;
-    grid-template-columns: 74px minmax(220px, 1fr) 74px;
-    align-items: center;
-    gap: 12px;
-    margin-top: 10px;
-    width: 100%;
-}
+.navegador-horario { display:grid; grid-template-columns:74px minmax(220px,1fr) 74px; align-items:center; gap:12px; margin-top:10px; width:100%; }
+.mudar-dia { min-height:44px; padding:7px 8px; border:1px solid #3d5873; border-radius:10px; background:#17283a; color:#fff; cursor:pointer; font-size:13px; font-weight:700; }
+#diaAnterior { justify-self:start; } #diaSeguinte { justify-self:end; }
+.mudar-dia:hover,.mudar-dia:focus-visible { background:#203a55; border-color:#5c88b2; }
+.horario-centro { min-width:0; text-align:center; }
+#horarioMarcacao { margin:0 0 9px; color:#f5f5f5; font-size:15px; font-weight:700; }
+.ajuste-hora { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; }
+.hora-destaque { min-width:72px; color:#fff; font-size:24px; line-height:1; font-weight:800; letter-spacing:.5px; }
+.mudar-hora { min-height:40px; padding:7px 12px; border:1px solid #466b91; border-radius:9px; background:#1b3550; color:#fff; cursor:pointer; font-size:13px; font-weight:800; white-space:nowrap; }
+.mudar-hora:hover,.mudar-hora:focus-visible { background:#284d72; border-color:#6b9dca; }
+.estado-disponibilidade { margin-top:9px; }
+.celula-agenda { position:relative; overflow:visible; }
+.marcacao-grelha,.marcacao-posicionada { background:var(--cor-marcacao-ocupada); }
+.marcacao-posicionada { position:absolute; z-index:3; left:3px; right:3px; top:calc(3px + (var(--deslocamento) / 30) * 44px); height:max(18px,calc((var(--duracao) / 30) * 44px - 6px)); min-height:0; padding:3px 5px; cursor:pointer; }
+.marcacao-posicionada strong { color:var(--cor-marcacao-texto); font-size:13px; line-height:1.15; }
+.marcacao-posicionada span { color:var(--cor-marcacao-servico); font-size:12px; line-height:1.15; }
 
-.mudar-dia {
-    min-height: 44px;
-    padding: 7px 8px;
-    border: 1px solid #3d5873;
-    border-radius: 10px;
-    background: #17283a;
-    color: #fff;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 700;
-}
+/* Estado da visita: continua visível na agenda enquanto não for cancelada. */
+.estado-concluída { outline:2px solid rgba(180,220,170,.45); }
+.estado-faltou { outline:2px solid rgba(210,160,110,.65); }
 
-#diaAnterior { justify-self: start; }
-#diaSeguinte { justify-self: end; }
+.modal-estado-conteudo { max-width:460px; }
+.resumo-estado { margin:6px 0 0; color:#d7d7d7; font-size:14px; }
+.estado-atual { margin:18px 0 12px; color:#d0d0d0; }
+.estado-atual strong { color:#fff; text-transform:capitalize; }
+.opcoes-estado { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.botao-estado { min-height:52px; border:1px solid #65725d; border-radius:10px; background:#46543c; color:#fff; font-size:15px; font-weight:700; cursor:pointer; }
+.botao-estado:hover { filter:brightness(1.15); }
+.botao-estado-secundario { background:#252525; border-color:#444; }
+.nota-historico { margin:15px 0 0; color:#aaa; font-size:12px; line-height:1.4; }
 
-.mudar-dia:hover,
-.mudar-dia:focus-visible {
-    background: #203a55;
-    border-color: #5c88b2;
-}
-
-.horario-centro {
-    min-width: 0;
-    text-align: center;
-}
-
-#horarioMarcacao {
-    margin: 0 0 9px;
-    color: #f5f5f5;
-    font-size: 15px;
-    font-weight: 700;
-}
-
-.ajuste-hora {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    gap: 8px;
-}
-
-.hora-destaque {
-    min-width: 72px;
-    color: #fff;
-    font-size: 24px;
-    line-height: 1;
-    font-weight: 800;
-    letter-spacing: .5px;
-}
-
-.mudar-hora {
-    min-height: 40px;
-    padding: 7px 12px;
-    border: 1px solid #466b91;
-    border-radius: 9px;
-    background: #1b3550;
-    color: #fff;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 800;
-    white-space: nowrap;
-}
-
-.mudar-hora:hover,
-.mudar-hora:focus-visible {
-    background: #284d72;
-    border-color: #6b9dca;
-}
-
-.estado-disponibilidade { margin-top: 9px; }
-
-/* Agenda semanal: a grelha continua de 30 min, mas as marcações podem começar aos :15/:45. */
-.celula-agenda {
-    position: relative;
-    overflow: visible;
-}
-
-/* Cor base das slots ocupadas. As variáveis ficam preparadas para Definições. */
-.marcacao-grelha,
-.marcacao-posicionada {
-    background: var(--cor-marcacao-ocupada);
-}
-
-.marcacao-posicionada {
-    position: absolute;
-    z-index: 3;
-    left: 3px;
-    right: 3px;
-    top: calc(3px + (var(--deslocamento) / 30) * 44px);
-    height: max(18px, calc((var(--duracao) / 30) * 44px - 6px));
-    min-height: 0;
-    padding: 3px 5px;
-}
-
-.marcacao-posicionada strong {
-    color: var(--cor-marcacao-texto);
-    font-size: 13px;
-    line-height: 1.15;
-}
-
-.marcacao-posicionada span {
-    color: var(--cor-marcacao-servico);
-    font-size: 12px;
-    line-height: 1.15;
-}
-
-@media (max-width: 620px) {
-    .navegador-horario {
-        grid-template-columns: 58px minmax(180px, 1fr) 58px;
-        gap: 7px;
-    }
-
-    .mudar-dia {
-        font-size: 11px;
-        padding: 6px 4px;
-    }
-
-    .mudar-hora {
-        padding: 7px 8px;
-        font-size: 12px;
-    }
-
-    .hora-destaque {
-        min-width: 62px;
-        font-size: 21px;
-    }
+@media (max-width:620px) {
+    .navegador-horario { grid-template-columns:58px minmax(180px,1fr) 58px; gap:7px; }
+    .mudar-dia { font-size:11px; padding:6px 4px; }
+    .mudar-hora { padding:7px 8px; font-size:12px; }
+    .hora-destaque { min-width:62px; font-size:21px; }
+    .opcoes-estado { grid-template-columns:1fr; }
 }
