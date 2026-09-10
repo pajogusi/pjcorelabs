@@ -21,13 +21,8 @@
     font-weight: 700;
 }
 
-#diaAnterior {
-    justify-self: start;
-}
-
-#diaSeguinte {
-    justify-self: end;
-}
+#diaAnterior { justify-self: start; }
+#diaSeguinte { justify-self: end; }
 
 .mudar-dia:hover,
 .mudar-dia:focus-visible {
@@ -82,8 +77,31 @@
     border-color: #6b9dca;
 }
 
-.estado-disponibilidade {
-    margin-top: 9px;
+.estado-disponibilidade { margin-top: 9px; }
+
+/* Agenda semanal: a grelha continua de 30 min, mas as marcações podem começar aos :15/:45. */
+.celula-agenda {
+    position: relative;
+    overflow: visible;
+}
+
+.marcacao-posicionada {
+    position: absolute;
+    z-index: 3;
+    left: 3px;
+    right: 3px;
+    top: calc(3px + (var(--deslocamento) / 30) * 44px);
+    height: max(18px, calc((var(--duracao) / 30) * 44px - 6px));
+    min-height: 0;
+    padding: 3px 5px;
+}
+
+.marcacao-posicionada strong {
+    font-size: 10px;
+}
+
+.marcacao-posicionada span {
+    font-size: 9px;
 }
 
 @media (max-width: 620px) {
