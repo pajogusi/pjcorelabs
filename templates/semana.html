@@ -23,20 +23,30 @@
 
     <main class="main-semana">
 
-        <section class="titulo-dia">
-            <h1>Semana</h1>
-            <p>{{ inicio_semana.strftime('%d/%m') }} — {{ fim_semana.strftime('%d/%m/%Y') }}</p>
-        </section>
+        <section class="titulo-semana">
 
-        <nav class="navegacao-dia">
-            <a href="/semana?data={{ semana_anterior.isoformat() }}" class="seta">‹</a>
-
-            <a href="/semana" class="botao-hoje">
-                Esta semana
+            <a href="/semana?data={{ semana_anterior.isoformat() }}"
+               class="seta-semana"
+               title="Semana anterior">
+                ‹
             </a>
 
-            <a href="/semana?data={{ semana_seguinte.isoformat() }}" class="seta">›</a>
-        </nav>
+            <div class="identificacao-semana">
+                <h1>Semana</h1>
+                <span>
+                    {{ inicio_semana.strftime('%d/%m') }}
+                    —
+                    {{ fim_semana.strftime('%d/%m/%Y') }}
+                </span>
+            </div>
+
+            <a href="/semana?data={{ semana_seguinte.isoformat() }}"
+               class="seta-semana"
+               title="Semana seguinte">
+                ›
+            </a>
+
+        </section>
 
         <section class="agenda-semanal">
 
@@ -83,6 +93,18 @@
             </div>
 
         </section>
+
+
+
+            <aside class="barra-lateral direita">
+                <a href="/semana?data={{ semana_seguinte.isoformat() }}"
+                   class="botao-lateral"
+                   title="Semana seguinte">
+                    ›
+                </a>
+            </aside>
+
+        </div>
 
     </main>
 

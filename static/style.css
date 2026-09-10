@@ -399,3 +399,350 @@ main {
         padding-right: 14px;
     }
 }
+
+/* =========================================================
+   RESPONSIVIDADE DA AGENDA SEMANAL
+   ========================================================= */
+
+html,
+body {
+    width: 100%;
+}
+
+.app-semana {
+    width: min(100% - 16px, 1400px);
+    max-width: 1400px;
+}
+
+.main-semana {
+    min-width: 0;
+}
+
+/* A grelha utiliza todo o espaço disponível */
+.agenda-semanal {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* PC e tablets largos: 7 dias ocupam toda a largura */
+.agenda-cabecalho,
+.linha-agenda {
+    width: 100%;
+}
+
+/* Altura adaptada ao ecrã disponível */
+.agenda-corpo {
+    height: clamp(380px, 58vh, 720px);
+}
+
+/* Tablets mais pequenos */
+@media (max-width: 900px) {
+
+    .app-semana {
+        width: calc(100% - 10px);
+    }
+
+    .main-semana {
+        padding-left: 6px;
+        padding-right: 6px;
+    }
+
+    .agenda-cabecalho,
+    .linha-agenda {
+        grid-template-columns: 46px repeat(7, minmax(82px, 1fr));
+    }
+
+    .agenda-dia strong {
+        font-size: 11px;
+    }
+
+    .marcacao-grelha strong {
+        font-size: 9px;
+    }
+}
+
+/* Telemóveis / ecrãs estreitos */
+@media (max-width: 600px) {
+
+    .agenda-semanal {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .agenda-cabecalho,
+    .linha-agenda {
+        min-width: 720px;
+        grid-template-columns: 48px repeat(7, 96px);
+    }
+
+    .agenda-corpo {
+        height: calc(100vh - 270px);
+        min-height: 360px;
+    }
+}
+
+/* =========================================================
+   LEGIBILIDADE — AGENDA BLESSED
+   ========================================================= */
+
+/* Intervalo da semana por baixo do título */
+.titulo-dia p {
+    color: #d6d6d6;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Nomes dos dias */
+.agenda-dia strong {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+/* Datas de cada dia */
+.agenda-dia span {
+    color: #d9e8f7;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Horas da grelha */
+.hora-agenda {
+    color: #f0f0f0;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* Texto das marcações */
+.marcacao-grelha strong {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.marcacao-grelha span {
+    color: #b9dcff;
+    font-weight: 500;
+}
+
+/* Um pouco mais de contraste nas linhas da agenda */
+.hora-agenda,
+.celula-agenda {
+    border-color: #2a2a2a;
+}
+
+/* Mantém legibilidade em tablets menores */
+@media (max-width: 900px) {
+    .agenda-dia span {
+        font-size: 11px;
+    }
+
+    .hora-agenda {
+        font-size: 12px;
+    }
+}
+
+/* =========================================================
+   LAYOUT DA AGENDA — NAVEGAÇÃO LATERAL
+   ========================================================= */
+
+.layout-agenda {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) 58px;
+    gap: 10px;
+    align-items: stretch;
+    margin-top: 12px;
+}
+
+.centro-agenda {
+    min-width: 0;
+}
+
+.centro-agenda .agenda-semanal {
+    margin-top: 0;
+}
+
+.barra-lateral {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.botao-lateral {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid #2b2b2b;
+    border-radius: 12px;
+
+    background: #151515;
+    color: #ffffff;
+    text-decoration: none;
+
+    font-size: 30px;
+    font-weight: 600;
+}
+
+.botao-lateral:hover {
+    background: #1d3047;
+}
+
+.botao-lateral.botao-atual {
+    font-size: 12px;
+    color: #b9dcff;
+}
+
+/* Aproveita melhor a altura disponível */
+.agenda-corpo {
+    height: calc(100vh - 245px);
+    min-height: 420px;
+    max-height: none;
+}
+
+/* Em ecrãs mais pequenos, as barras ficam mais estreitas */
+@media (max-width: 900px) {
+
+    .layout-agenda {
+        grid-template-columns: 46px minmax(0, 1fr) 46px;
+        gap: 5px;
+    }
+
+    .botao-lateral {
+        width: 42px;
+        height: 46px;
+        font-size: 26px;
+    }
+
+    .botao-lateral.botao-atual {
+        font-size: 10px;
+    }
+}
+
+/* No telemóvel não desperdiçamos largura com barras laterais */
+@media (max-width: 600px) {
+
+    .layout-agenda {
+        display: block;
+    }
+
+    .barra-lateral {
+        display: none;
+    }
+}
+
+/* =========================================================
+   CABEÇALHO COMPACTO DA SEMANA
+   ========================================================= */
+
+.titulo-semana {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 10px 0 12px;
+}
+
+.identificacao-semana {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+}
+
+.identificacao-semana h1 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 28px;
+    line-height: 1;
+}
+
+.identificacao-semana span {
+    color: #d9e8f7;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.seta-semana {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid #303030;
+    border-radius: 11px;
+
+    background: #151515;
+    color: #ffffff;
+    text-decoration: none;
+
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.seta-semana:hover {
+    background: #1d3047;
+}
+
+/* A agenda passa a aproveitar quase toda a largura */
+.app-semana {
+    width: calc(100% - 20px);
+    max-width: none;
+}
+
+.main-semana {
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+.agenda-semanal {
+    margin-top: 0;
+}
+
+/* Mais altura útil depois de remover a antiga navegação */
+.agenda-corpo {
+    height: calc(100vh - 190px);
+    min-height: 420px;
+    max-height: none;
+}
+
+@media (max-width: 700px) {
+    .titulo-semana {
+        gap: 7px;
+    }
+
+    .identificacao-semana {
+        gap: 7px;
+    }
+
+    .identificacao-semana h1 {
+        font-size: 21px;
+    }
+
+    .identificacao-semana span {
+        font-size: 12px;
+    }
+
+    .seta-semana {
+        width: 38px;
+        height: 38px;
+        flex-basis: 38px;
+    }
+
+    .main-semana {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+}
+
+/* Centrar navegação semanal relativamente à agenda */
+.titulo-semana {
+    justify-content: center;
+    width: 100%;
+}
+
+.identificacao-semana {
+    justify-content: center;
+}
