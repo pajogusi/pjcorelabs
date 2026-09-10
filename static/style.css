@@ -795,9 +795,7 @@ body {
         grid-template-columns: 1fr;
     }
 
-    .lateral-marca {
-        display: none;
-    }
+    
 
     .estrutura-semana .main-semana {
         padding-left: 5px;
