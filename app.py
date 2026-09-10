@@ -105,12 +105,25 @@ def semana():
     nomes_dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
     for numero in range(7):
         data_dia = inicio_semana + timedelta(days=numero)
-        marcacoes_dia = [{
-            "id": m["id"], "inicio": m["inicio"],
-            "hora": datetime.fromisoformat(m["inicio"]).strftime("%H:%M"),
-            "duracao": m["duracao_minutos"], "servico": m["servico"],
-            "estado": m["estado"], "nome": m["nome"]
-        } for m in marcacoes if m["inicio"][:10] == data_dia.isoformat()]
+        marcacoes_dia = []
+        for m in marcacoes:
+            if m["inicio"][:10] != data_dia.isoformat():
+                continue
+            inicio_m = datetime.fromisoformat(m["inicio"])
+            minuto_base = 30 if inicio_m.minute >= 30 else 0
+            hora_base = inicio_m.replace(minute=minuto_base, second=0, microsecond=0)
+            deslocamento = inicio_m.minute - minuto_base
+            marcacoes_dia.append({
+                "id": m["id"],
+                "inicio": m["inicio"],
+                "hora": inicio_m.strftime("%H:%M"),
+                "hora_base": hora_base.strftime("%H:%M"),
+                "deslocamento": deslocamento,
+                "duracao": m["duracao_minutos"],
+                "servico": m["servico"],
+                "estado": m["estado"],
+                "nome": m["nome"]
+            })
         dias.append({"data": data_dia.isoformat(), "nome": nomes_dias[numero], "marcacoes": marcacoes_dia})
 
     horas_grelha = []
