@@ -182,7 +182,7 @@
 }
 
 /* LEGIBILIDADE TABLET — feedback do Bruno */
-@media (min-width: 701px) and (max-width: 1200px) {
+@media (min-width: 701px) and (max-width: 1800px) {
     .menu-item {
         font-size: 15px;
         font-weight: 700;
@@ -214,5 +214,40 @@
     .marcacao-grelha span {
         font-size: 14px;
         line-height: 1.15;
+    }
+}
+
+/* TABLET COMPACTO — mais largura útil para a agenda */
+@media (min-width: 701px) and (max-width: 1800px) {
+    .estrutura-semana {
+        grid-template-columns: 88px minmax(0, 1fr);
+        gap: 6px;
+    }
+
+    .lateral-marca {
+        padding-left: 5px;
+        padding-right: 5px;
+        gap: 8px;
+    }
+
+    .marca-lateral {
+        width: 72px;
+        height: 72px;
+        min-height: 72px;
+        margin-bottom: 6px;
+    }
+
+    .menu-item {
+        min-height: 50px;
+        padding: 5px;
+        justify-content: center;
+        gap: 0;
+        font-size: 0;
+    }
+
+    .menu-icone {
+        width: auto;
+        flex: 0 0 auto;
+        font-size: 24px;
     }
 }
