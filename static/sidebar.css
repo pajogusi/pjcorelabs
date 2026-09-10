@@ -105,16 +105,17 @@
     }
 }
 
-/* Telemóvel: modo de recurso. O tablet/desktop mantém a lateral original. */
+/* Telemóvel: modo de recurso. Regras isoladas do layout de tablet/desktop. */
 @media (max-width: 700px) {
-    .estrutura-semana {
-        grid-template-columns: 1fr;
+    .app-semana .estrutura-semana {
+        grid-template-columns: minmax(0, 1fr) !important;
         gap: 4px;
     }
 
-    .lateral-marca {
-        display: flex;
-        min-height: 0;
+    .app-semana .lateral-marca {
+        display: flex !important;
+        visibility: visible !important;
+        min-height: 0 !important;
         width: 100%;
         padding: 6px 5px 5px;
         gap: 6px;
@@ -124,7 +125,8 @@
         align-items: center;
     }
 
-    .marca-lateral {
+    .app-semana .marca-lateral {
+        display: flex !important;
         width: 48px;
         height: 48px;
         min-width: 48px;
@@ -133,7 +135,8 @@
         flex: 0 0 48px;
     }
 
-    .menu-principal {
+    .app-semana .menu-principal {
+        display: flex !important;
         min-width: 0;
         flex: 1 1 auto;
         flex-direction: row;
@@ -145,17 +148,20 @@
         -webkit-overflow-scrolling: touch;
     }
 
-    .menu-principal::-webkit-scrollbar {
+    .app-semana .menu-principal::-webkit-scrollbar {
         display: none;
     }
 
-    .menu-item {
+    .app-semana .menu-item {
+        display: flex !important;
         width: auto;
         min-width: 54px;
         min-height: 48px;
+        height: auto;
         padding: 3px 5px;
         flex: 1 0 54px;
         flex-direction: column;
+        align-items: center;
         justify-content: center;
         gap: 1px;
         border-radius: 8px;
@@ -165,8 +171,10 @@
         white-space: nowrap;
     }
 
-    .menu-icone {
+    .app-semana .menu-icone {
+        display: block;
         width: auto;
+        height: auto;
         flex: 0 0 auto;
         font-size: 18px;
         line-height: 1;
