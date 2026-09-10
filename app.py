@@ -16,6 +16,20 @@ def get_db():
     return con
 
 
+def concretizar_marcacoes_vencidas(con):
+    """Concretiza por defeito marcações ainda 'marcada' 10 min após a hora de início."""
+    limite = datetime.now() - timedelta(minutes=10)
+    con.execute(
+        """
+        UPDATE marcacoes
+        SET estado = 'concluída', atualizado_em = CURRENT_TIMESTAMP
+        WHERE estado = 'marcada' AND inicio <= ?
+        """,
+        (limite.strftime("%Y-%m-%dT%H:%M"),),
+    )
+    con.commit()
+
+
 @app.route("/")
 def home():
     data_pedida = request.args.get("data")
@@ -39,6 +53,7 @@ def home():
         titulo_dia = dias_semana[data_selecionada.weekday()]
 
     con = get_db()
+    concretizar_marcacoes_vencidas(con)
     marcacoes = con.execute("""
         SELECT m.id, m.inicio, m.duracao_minutos, m.servico, m.estado, c.nome
         FROM marcacoes AS m
@@ -92,6 +107,7 @@ def semana():
     semana_seguinte = inicio_semana + timedelta(days=7)
 
     con = get_db()
+    concretizar_marcacoes_vencidas(con)
     marcacoes = con.execute("""
         SELECT m.id, m.inicio, m.duracao_minutos, m.servico, m.estado, c.nome
         FROM marcacoes AS m
@@ -150,6 +166,7 @@ def disponibilidade():
 
     fim = inicio + timedelta(minutes=duracao)
     con = get_db()
+    concretizar_marcacoes_vencidas(con)
     marcacoes = con.execute("""
         SELECT m.id, m.inicio, m.duracao_minutos, m.servico, c.nome
         FROM marcacoes AS m
@@ -186,6 +203,7 @@ def nova_marcacao():
 
     novo_fim = novo_inicio + timedelta(minutes=duracao)
     con = get_db()
+    concretizar_marcacoes_vencidas(con)
     conflitos = con.execute("""
         SELECT m.inicio, m.duracao_minutos
         FROM marcacoes m
@@ -224,6 +242,7 @@ def alterar_estado_marcacao(marcacao_id):
         return "Estado inválido", 400
 
     con = get_db()
+    concretizar_marcacoes_vencidas(con)
     marcacao = con.execute("SELECT id, inicio FROM marcacoes WHERE id = ?", (marcacao_id,)).fetchone()
     if not marcacao:
         con.close()
