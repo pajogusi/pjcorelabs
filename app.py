@@ -216,5 +216,29 @@ def nova_marcacao():
     return redirect(url_for("semana", data=novo_inicio.date().isoformat()))
 
 
+@app.route("/marcacoes/<int:marcacao_id>/estado", methods=["POST"])
+def alterar_estado_marcacao(marcacao_id):
+    estado = request.form.get("estado", "").strip()
+    estados_validos = {"marcada", "concluída", "cancelada", "faltou"}
+    if estado not in estados_validos:
+        return "Estado inválido", 400
+
+    con = get_db()
+    marcacao = con.execute("SELECT id, inicio FROM marcacoes WHERE id = ?", (marcacao_id,)).fetchone()
+    if not marcacao:
+        con.close()
+        return "Marcação não encontrada", 404
+
+    con.execute(
+        "UPDATE marcacoes SET estado = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
+        (estado, marcacao_id),
+    )
+    con.commit()
+    data_marcacao = marcacao["inicio"][:10]
+    con.close()
+
+    return redirect(url_for("semana", data=data_marcacao))
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=False)
