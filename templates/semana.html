@@ -48,8 +48,8 @@
                         {% for dia in dias %}
                         <div class="celula-agenda" data-data="{{ dia.data }}" data-hora="{{ hora }}" role="button" tabindex="0" title="Nova marcação">
                             {% for m in dia.marcacoes %}
-                                {% if m.hora == hora %}
-                                <div class="marcacao-grelha"><strong>{{ m.nome }}</strong><span>{{ m.servico }}</span></div>
+                                {% if m.hora_base == hora %}
+                                <div class="marcacao-grelha marcacao-posicionada" style="--deslocamento: {{ m.deslocamento }}; --duracao: {{ m.duracao }};" title="{{ m.hora }} · {{ m.nome }} · {{ m.servico }}"><strong>{{ m.hora }} · {{ m.nome }}</strong><span>{{ m.servico }}</span></div>
                                 {% endif %}
                             {% endfor %}
                         </div>
