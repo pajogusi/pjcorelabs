@@ -6,6 +6,7 @@
     <title>Semana — Blessed</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='marcacao.css') }}">
 </head>
 <body>
 <div class="app app-semana">
@@ -68,16 +69,17 @@
             <div>
                 <h2 id="tituloNovaMarcacao">Nova marcação</h2>
                 <div class="navegador-horario">
-                    <button type="button" class="mudar-dia" id="diaAnterior" title="Dia anterior">‹</button>
+                    <button type="button" class="mudar-dia" id="diaAnterior" title="Dia anterior">‹ Dia</button>
                     <div class="horario-centro">
                         <p id="horarioMarcacao"></p>
                         <div class="ajuste-hora">
                             <button type="button" class="mudar-hora" id="horaAnterior">−15 min</button>
+                            <strong class="hora-destaque" id="horaDestaque"></strong>
                             <button type="button" class="mudar-hora" id="horaSeguinte">+15 min</button>
                         </div>
                         <div id="estadoDisponibilidade" class="estado-disponibilidade">A verificar...</div>
                     </div>
-                    <button type="button" class="mudar-dia" id="diaSeguinte" title="Dia seguinte">›</button>
+                    <button type="button" class="mudar-dia" id="diaSeguinte" title="Dia seguinte">Dia ›</button>
                 </div>
             </div>
             <button type="button" class="fechar-modal" data-fechar-modal aria-label="Fechar">×</button>
@@ -121,7 +123,8 @@ function formatarDataMarcacao() {
     const p = data.split('-');
     const nomes = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
     const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-    document.getElementById('horarioMarcacao').textContent = nomes[d.getDay()] + ' · ' + p[2] + '/' + p[1] + '/' + p[0] + ' · ' + hora;
+    document.getElementById('horarioMarcacao').textContent = nomes[d.getDay()] + ' · ' + p[2] + '/' + p[1] + '/' + p[0];
+    document.getElementById('horaDestaque').textContent = hora;
     campoInicio.value = data + 'T' + hora;
 }
 
