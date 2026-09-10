@@ -936,3 +936,123 @@ body {
         font-size: 18px;
     }
 }
+
+/* LEGIBILIDADE REFORÇADA — UTILIZAÇÃO DIÁRIA */
+.menu-item {
+    font-size: 15px;
+    font-weight: 650;
+}
+
+.menu-icone {
+    font-size: 21px;
+}
+
+.identificacao-semana h1 {
+    font-size: 30px;
+}
+
+.identificacao-semana span {
+    font-size: 16px;
+}
+
+.agenda-dia strong {
+    font-size: 14px;
+}
+
+.agenda-dia span {
+    font-size: 13px;
+}
+
+.hora-agenda {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.marcacao-grelha strong {
+    font-size: 11px;
+}
+
+.marcacao-grelha span {
+    font-size: 11px;
+}
+
+/* Mantém boa leitura em tablets um pouco menores */
+@media (max-width: 900px) {
+    .menu-item {
+        font-size: 14px;
+    }
+
+    .agenda-dia strong {
+        font-size: 13px;
+    }
+
+    .agenda-dia span {
+        font-size: 12px;
+    }
+
+    .hora-agenda {
+        font-size: 13px;
+    }
+}
+
+/* LEGIBILIDADE XL — SEM ALTERAR A ESTRUTURA */
+.menu-item {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.menu-icone {
+    font-size: 22px;
+}
+
+.identificacao-semana h1 {
+    font-size: 32px;
+}
+
+.identificacao-semana span {
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.agenda-dia strong {
+    font-size: 15px;
+    line-height: 1.15;
+}
+
+.agenda-dia span {
+    font-size: 14px;
+    line-height: 1.15;
+}
+
+.hora-agenda {
+    font-size: 15px;
+    font-weight: 750;
+}
+
+.marcacao-grelha strong {
+    font-size: 12px;
+    line-height: 1.15;
+}
+
+.marcacao-grelha span {
+    font-size: 12px;
+    line-height: 1.15;
+}
+
+@media (max-width: 900px) {
+    .menu-item {
+        font-size: 15px;
+    }
+
+    .agenda-dia strong {
+        font-size: 14px;
+    }
+
+    .agenda-dia span {
+        font-size: 13px;
+    }
+
+    .hora-agenda {
+        font-size: 14px;
+    }
+}
