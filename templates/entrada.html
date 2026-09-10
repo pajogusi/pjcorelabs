@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Blessed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='entrada.css') }}">
+</head>
+<body>
+    <main class="entrada-blessed">
+        <section class="entrada-conteudo">
+            <img src="{{ url_for('static', filename='blessed-logo.png') }}" alt="Barbearia Blessed" class="entrada-logo">
+
+            <button type="button" id="botaoEntrar" class="botao-entrar">Entrar</button>
+
+            <div id="carregamento" class="carregamento" hidden aria-live="polite">
+                <div class="carregamento-texto">A carregar…</div>
+                <div class="barra-carregamento" aria-hidden="true">
+                    <div class="barra-progresso"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+<script>
+const botaoEntrar = document.getElementById('botaoEntrar');
+const carregamento = document.getElementById('carregamento');
+
+botaoEntrar.addEventListener('click', function () {
+    botaoEntrar.disabled = true;
+    botaoEntrar.hidden = true;
+    carregamento.hidden = false;
+
+    setTimeout(function () {
+        window.location.href = '/semana';
+    }, 1100);
+});
+</script>
+</body>
+</html>
