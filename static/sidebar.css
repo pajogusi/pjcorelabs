@@ -1,0 +1,105 @@
+/* Lateral principal da aplicação Blessed */
+
+.estrutura-semana {
+    grid-template-columns: 170px minmax(0, 1fr);
+    gap: 12px;
+}
+
+.lateral-marca {
+    min-height: calc(100vh - 20px);
+    padding: 18px 10px;
+    gap: 12px;
+}
+
+/* O logótipo oficial é apresentado como avatar circular. */
+.marca-lateral {
+    width: 132px;
+    height: 132px;
+    min-height: 132px;
+    margin: 0 auto 10px;
+    border: 1px solid #343434;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #000 url('/static/blessed-logo.png') center / cover no-repeat;
+}
+
+/* Substitui visualmente a marca provisória em texto. */
+.marca-lateral strong,
+.marca-lateral span {
+    display: none;
+}
+
+/* Navegação principal: compacta, legível e preparada para crescer. */
+.menu-principal {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.menu-item {
+    min-height: 42px;
+    padding: 7px 9px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border: 1px solid #292929;
+    border-radius: 10px;
+    background: #111;
+    color: #d8d8d8;
+    text-decoration: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+    background: #181818;
+    border-color: #3a3a3a;
+}
+
+.menu-item.ativo {
+    background: #18283a;
+    border-color: #315273;
+    color: #fff;
+}
+
+.menu-icone {
+    width: 22px;
+    flex: 0 0 22px;
+    text-align: center;
+    font-size: 17px;
+}
+
+@media (max-width: 900px) {
+    .estrutura-semana {
+        grid-template-columns: 145px minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .marca-lateral {
+        width: 112px;
+        height: 112px;
+        min-height: 112px;
+    }
+
+    .menu-item {
+        min-height: 40px;
+        padding: 6px 7px;
+        gap: 6px;
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 700px) {
+    .estrutura-semana {
+        grid-template-columns: 1fr;
+    }
+
+    .lateral-marca {
+        display: none;
+    }
+}
