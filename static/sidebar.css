@@ -180,3 +180,39 @@
         line-height: 1;
     }
 }
+
+/* LEGIBILIDADE TABLET — feedback do Bruno */
+@media (min-width: 701px) and (max-width: 1200px) {
+    .menu-item {
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    .menu-icone {
+        font-size: 21px;
+    }
+
+    .agenda-dia strong {
+        font-size: 16px;
+    }
+
+    .agenda-dia span {
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .hora-agenda {
+        font-size: 16px;
+        font-weight: 700;
+    }
+
+    .marcacao-grelha strong {
+        font-size: 15px;
+        line-height: 1.15;
+    }
+
+    .marcacao-grelha span {
+        font-size: 14px;
+        line-height: 1.15;
+    }
+}
