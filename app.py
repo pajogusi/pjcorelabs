@@ -16,6 +16,21 @@ def get_db():
     return con
 
 
+def normalizar_telefone(numero):
+    numero = (numero or "").strip()
+    return "".join(c for c in numero if c.isdigit() or c == "+")
+
+
+def garantir_esquema():
+    """Aplica pequenas migrações compatíveis sem apagar dados existentes."""
+    con = get_db()
+    colunas = {row["name"] for row in con.execute("PRAGMA table_info(marcacoes)")}
+    if "observacoes" not in colunas:
+        con.execute("ALTER TABLE marcacoes ADD COLUMN observacoes TEXT")
+    con.commit()
+    con.close()
+
+
 def concretizar_marcacoes_vencidas(con):
     """Concretiza por defeito marcações ainda 'marcada' 10 min após a hora de início."""
     limite = datetime.now() - timedelta(minutes=10)
@@ -157,13 +172,111 @@ def semana():
     return render_template("semana.html", inicio_semana=inicio_semana, fim_semana=fim_semana, semana_anterior=semana_anterior, semana_seguinte=semana_seguinte, dias=dias, horas_grelha=horas_grelha)
 
 
+@app.route("/clientes")
+def clientes():
+    pesquisa = request.args.get("q", "").strip()
+    termo = f"%{pesquisa}%"
+    con = get_db()
+    clientes_lista = con.execute("""
+        SELECT
+            c.id,
+            c.nome,
+            c.email,
+            c.data_nascimento,
+            COALESCE((
+                SELECT t.numero
+                FROM telefones t
+                WHERE t.cliente_id = c.id AND t.atual = 1
+                ORDER BY t.id DESC
+                LIMIT 1
+            ), '') AS telefone,
+            COUNT(m.id) AS total_marcacoes,
+            MAX(CASE WHEN m.estado = 'concluída' THEN m.inicio END) AS ultimo_corte
+        FROM clientes c
+        LEFT JOIN telefones tp ON tp.cliente_id = c.id AND tp.atual = 1
+        LEFT JOIN marcacoes m ON m.cliente_id = c.id
+        WHERE ? = ''
+           OR c.nome LIKE ? COLLATE NOCASE
+           OR COALESCE(c.email, '') LIKE ? COLLATE NOCASE
+           OR COALESCE(tp.numero, '') LIKE ?
+           OR COALESCE(tp.numero_normalizado, '') LIKE ?
+        GROUP BY c.id
+        ORDER BY c.nome COLLATE NOCASE
+    """, (pesquisa, termo, termo, termo, termo)).fetchall()
+    con.close()
+    return render_template("clientes.html", clientes=clientes_lista, pesquisa=pesquisa)
+
+
+@app.route("/clientes/<int:cliente_id>")
+def cliente_detalhe(cliente_id):
+    con = get_db()
+    cliente = con.execute("""
+        SELECT
+            c.*,
+            COALESCE((
+                SELECT t.numero
+                FROM telefones t
+                WHERE t.cliente_id = c.id AND t.atual = 1
+                ORDER BY t.id DESC
+                LIMIT 1
+            ), '') AS telefone
+        FROM clientes c
+        WHERE c.id = ?
+    """, (cliente_id,)).fetchone()
+    if not cliente:
+        con.close()
+        return "Cliente não encontrado", 404
+
+    historico = con.execute("""
+        SELECT id, inicio, duracao_minutos, servico, estado, observacoes
+        FROM marcacoes
+        WHERE cliente_id = ?
+        ORDER BY inicio DESC
+    """, (cliente_id,)).fetchall()
+    con.close()
+    return render_template("cliente.html", cliente=cliente, historico=historico)
+
+
+@app.route("/api/clientes/por-telefone")
+def cliente_por_telefone():
+    numero = normalizar_telefone(request.args.get("telefone", ""))
+    if not numero:
+        return {"ok": True, "encontrado": False}
+
+    con = get_db()
+    cliente = con.execute("""
+        SELECT c.id, c.nome, c.email, c.data_nascimento, t.numero
+        FROM telefones t
+        JOIN clientes c ON c.id = t.cliente_id
+        WHERE t.numero_normalizado = ? AND t.atual = 1
+        ORDER BY t.id DESC
+        LIMIT 1
+    """, (numero,)).fetchone()
+    con.close()
+
+    if not cliente:
+        return {"ok": True, "encontrado": False}
+
+    return {
+        "ok": True,
+        "encontrado": True,
+        "cliente": {
+            "id": cliente["id"],
+            "nome": cliente["nome"],
+            "telefone": cliente["numero"],
+            "email": cliente["email"] or "",
+            "data_nascimento": cliente["data_nascimento"] or "",
+        },
+    }
+
+
 @app.route("/api/disponibilidade")
 def disponibilidade():
     data_pedida = request.args.get("data", "").strip()
     hora_pedida = request.args.get("hora", "").strip()
     try:
         duracao = int(request.args.get("duracao", 30))
-        if duracao not in (15, 30, 60, 90):
+        if duracao not in (15, 30, 45, 60, 90):
             raise ValueError
         inicio = datetime.fromisoformat(f"{data_pedida}T{hora_pedida}")
     except (ValueError, TypeError):
@@ -195,6 +308,9 @@ def disponibilidade():
 def nova_marcacao():
     nome = request.form.get("nome", "").strip()
     telefone = request.form.get("telefone", "").strip()
+    email = request.form.get("email", "").strip()
+    data_nascimento = request.form.get("data_nascimento", "").strip() or None
+    observacoes = request.form.get("observacoes", "").strip() or None
     inicio = request.form.get("inicio", "").strip()
     servico = request.form.get("servico", "").strip()
     try:
@@ -203,10 +319,14 @@ def nova_marcacao():
     except (ValueError, TypeError):
         return "Data, hora ou duração inválida", 400
 
-    if not nome or not telefone or not inicio or not servico or duracao not in (15, 30, 60, 90):
+    if not nome or not telefone or not inicio or not servico or duracao not in (15, 30, 45, 60, 90):
         return "Dados obrigatórios em falta", 400
 
     novo_fim = novo_inicio + timedelta(minutes=duracao)
+    numero_normalizado = normalizar_telefone(telefone)
+    if not numero_normalizado:
+        return "Número de telefone inválido", 400
+
     con = get_db()
     concretizar_marcacoes_vencidas(con)
     conflitos = con.execute("""
@@ -222,13 +342,43 @@ def nova_marcacao():
             con.close()
             return "Horário ocupado", 409
 
-    numero_normalizado = "".join(c for c in telefone if c.isdigit() or c == "+")
     try:
         cur = con.cursor()
-        cur.execute("INSERT INTO clientes (nome) VALUES (?)", (nome,))
-        cliente_id = cur.lastrowid
-        cur.execute("INSERT INTO telefones (cliente_id, numero, numero_normalizado) VALUES (?, ?, ?)", (cliente_id, telefone, numero_normalizado))
-        cur.execute("INSERT INTO marcacoes (cliente_id, inicio, duracao_minutos, servico) VALUES (?, ?, ?, ?)", (cliente_id, inicio, duracao, servico))
+        cliente = cur.execute("""
+            SELECT c.id
+            FROM telefones t
+            JOIN clientes c ON c.id = t.cliente_id
+            WHERE t.numero_normalizado = ? AND t.atual = 1
+            ORDER BY t.id DESC
+            LIMIT 1
+        """, (numero_normalizado,)).fetchone()
+
+        if cliente:
+            cliente_id = cliente["id"]
+            cur.execute("""
+                UPDATE clientes
+                SET nome = ?,
+                    email = CASE WHEN ? != '' THEN ? ELSE email END,
+                    data_nascimento = COALESCE(?, data_nascimento),
+                    atualizado_em = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (nome, email, email, data_nascimento, cliente_id))
+        else:
+            cur.execute("""
+                INSERT INTO clientes (nome, email, data_nascimento)
+                VALUES (?, ?, ?)
+            """, (nome, email or None, data_nascimento))
+            cliente_id = cur.lastrowid
+            cur.execute("""
+                INSERT INTO telefones (cliente_id, numero, numero_normalizado)
+                VALUES (?, ?, ?)
+            """, (cliente_id, telefone, numero_normalizado))
+
+        cur.execute("""
+            INSERT INTO marcacoes
+            (cliente_id, inicio, duracao_minutos, servico, observacoes)
+            VALUES (?, ?, ?, ?, ?)
+        """, (cliente_id, inicio, duracao, servico, observacoes))
         con.commit()
     except Exception:
         con.rollback()
@@ -262,6 +412,9 @@ def alterar_estado_marcacao(marcacao_id):
     con.close()
 
     return redirect(url_for("semana", data=data_marcacao))
+
+
+garantir_esquema()
 
 
 if __name__ == "__main__":
