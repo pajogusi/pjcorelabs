@@ -39,6 +39,11 @@ def garantir_esquema():
     colunas = {row["name"] for row in con.execute("PRAGMA table_info(marcacoes)")}
     if "observacoes" not in colunas:
         con.execute("ALTER TABLE marcacoes ADD COLUMN observacoes TEXT")
+
+    colunas_clientes = {row["name"] for row in con.execute("PRAGMA table_info(clientes)")}
+    if "alerta_inatividade_visto_em" not in colunas_clientes:
+        con.execute("ALTER TABLE clientes ADD COLUMN alerta_inatividade_visto_em TEXT")
+
     con.commit()
     con.close()
 
@@ -57,8 +62,8 @@ def concretizar_marcacoes_vencidas(con):
     con.commit()
 
 
-def obter_clientes_inativos(con, dias=60):
-    """Clientes cujo último corte concluído ocorreu há pelo menos 'dias' dias."""
+def obter_clientes_inativos(con, dias=60, apenas_pendentes=False):
+    """Clientes inativos; opcionalmente só os alertas ainda não consultados."""
     limite = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%dT%H:%M")
     return con.execute(
         """
@@ -66,6 +71,7 @@ def obter_clientes_inativos(con, dias=60):
             c.id,
             c.nome,
             c.email,
+            c.alerta_inatividade_visto_em,
             COALESCE((
                 SELECT t.numero
                 FROM telefones t
@@ -77,10 +83,16 @@ def obter_clientes_inativos(con, dias=60):
         FROM clientes c
         JOIN marcacoes m ON m.cliente_id = c.id
         GROUP BY c.id
-        HAVING ultimo_corte IS NOT NULL AND ultimo_corte <= ?
+        HAVING ultimo_corte IS NOT NULL
+           AND ultimo_corte <= ?
+           AND (
+                ? = 0
+                OR c.alerta_inatividade_visto_em IS NULL
+                OR c.alerta_inatividade_visto_em < ultimo_corte
+           )
         ORDER BY ultimo_corte ASC
         """,
-        (limite,),
+        (limite, 1 if apenas_pendentes else 0),
     ).fetchall()
 
 
@@ -174,7 +186,7 @@ def semana():
         WHERE substr(m.inicio, 1, 10) BETWEEN ? AND ? AND m.estado != 'cancelada'
         ORDER BY m.inicio
     """, (inicio_semana.isoformat(), fim_semana.isoformat())).fetchall()
-    clientes_inativos = obter_clientes_inativos(con)
+    clientes_inativos = obter_clientes_inativos(con, apenas_pendentes=True)
     con.close()
 
     dias = []
@@ -225,6 +237,7 @@ def semana():
 def clientes():
     pesquisa = request.args.get("q", "").strip()
     apenas_inativos = request.args.get("inativos") == "1"
+    top10 = request.args.get("top") == "10"
     termo = f"%{pesquisa}%"
     limite_inatividade = (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M")
     con = get_db()
@@ -242,6 +255,7 @@ def clientes():
                 LIMIT 1
             ), '') AS telefone,
             COUNT(m.id) AS total_marcacoes,
+            SUM(CASE WHEN m.estado = 'concluída' THEN 1 ELSE 0 END) AS total_concluidas,
             MAX(CASE WHEN m.estado = 'concluída' THEN m.inicio END) AS ultimo_corte
         FROM clientes c
         LEFT JOIN telefones tp ON tp.cliente_id = c.id AND tp.atual = 1
@@ -253,8 +267,20 @@ def clientes():
            OR COALESCE(tp.numero_normalizado, '') LIKE ?)
         GROUP BY c.id
         HAVING (? = 0 OR (ultimo_corte IS NOT NULL AND ultimo_corte <= ?))
-        ORDER BY c.nome COLLATE NOCASE
-    """, (pesquisa, termo, termo, termo, termo, 1 if apenas_inativos else 0, limite_inatividade)).fetchall()
+           AND (? = 0 OR SUM(CASE WHEN m.estado = 'concluída' THEN 1 ELSE 0 END) > 0)
+        ORDER BY
+            CASE WHEN ? = 1 THEN SUM(CASE WHEN m.estado = 'concluída' THEN 1 ELSE 0 END) END DESC,
+            CASE WHEN ? = 1 THEN ultimo_corte END DESC,
+            c.nome COLLATE NOCASE
+        LIMIT CASE WHEN ? = 1 THEN 10 ELSE -1 END
+    """, (
+        pesquisa, termo, termo, termo, termo,
+        1 if apenas_inativos else 0, limite_inatividade,
+        1 if top10 else 0,
+        1 if top10 else 0,
+        1 if top10 else 0,
+        1 if top10 else 0,
+    )).fetchall()
     total_inativos = len(obter_clientes_inativos(con))
     con.close()
     return render_template(
@@ -262,6 +288,7 @@ def clientes():
         clientes=clientes_lista,
         pesquisa=pesquisa,
         apenas_inativos=apenas_inativos,
+        top10=top10,
         total_inativos=total_inativos,
     )
 
@@ -292,6 +319,22 @@ def cliente_detalhe(cliente_id):
         WHERE cliente_id = ?
         ORDER BY inicio DESC
     """, (cliente_id,)).fetchall()
+
+    ultimo_corte = con.execute("""
+        SELECT MAX(inicio)
+        FROM marcacoes
+        WHERE cliente_id = ? AND estado = 'concluída'
+    """, (cliente_id,)).fetchone()[0]
+
+    limite_inatividade = (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M")
+    if ultimo_corte and ultimo_corte <= limite_inatividade:
+        con.execute("""
+            UPDATE clientes
+            SET alerta_inatividade_visto_em = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (cliente_id,))
+        con.commit()
+
     con.close()
     return render_template("cliente.html", cliente=cliente, historico=historico)
 
