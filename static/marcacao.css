@@ -24,6 +24,15 @@
 .marcacao-posicionada strong { color:var(--cor-marcacao-texto); font-size:13px; line-height:1.15; }
 .marcacao-posicionada span { color:var(--cor-marcacao-servico); font-size:12px; line-height:1.15; }
 
+/* Formulário maior para uso principal em tablet. */
+.form-marcacao-alargado { width:min(820px,calc(100vw - 32px)); max-width:820px; max-height:92vh; overflow-y:auto; }
+.form-grid-duplo { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; }
+.form-marcacao textarea { width:100%; resize:vertical; min-height:82px; }
+.campo-opcional { color:#777; font-size:11px; font-weight:400; }
+.estado-cliente { min-height:24px; margin:-2px 0 10px; padding:5px 8px; border-radius:8px; font-size:12px; }
+.cliente-encontrado { color:#b9e9c0; background:rgba(57,112,67,.18); }
+.cliente-novo { color:#b8c9dc; background:rgba(54,78,105,.18); }
+
 /* Estado da visita: continua visível na agenda enquanto não for cancelada. */
 .estado-concluída { outline:2px solid rgba(180,220,170,.45); }
 .estado-faltou { outline:2px solid rgba(210,160,110,.65); }
@@ -38,10 +47,15 @@
 .botao-estado-secundario { background:#252525; border-color:#444; }
 .nota-historico { margin:15px 0 0; color:#aaa; font-size:12px; line-height:1.4; }
 
+@media (max-width:700px) {
+    .form-grid-duplo { grid-template-columns:1fr; }
+}
+
 @media (max-width:620px) {
     .navegador-horario { grid-template-columns:58px minmax(180px,1fr) 58px; gap:7px; }
     .mudar-dia { font-size:11px; padding:6px 4px; }
     .mudar-hora { padding:7px 8px; font-size:12px; }
     .hora-destaque { min-width:62px; font-size:21px; }
     .opcoes-estado { grid-template-columns:1fr; }
+    .form-marcacao-alargado { width:calc(100vw - 16px); }
 }
