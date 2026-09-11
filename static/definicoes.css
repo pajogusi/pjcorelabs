@@ -1,0 +1,166 @@
+.definicoes-main {
+    padding: 24px 28px 40px;
+    min-width: 0;
+}
+
+.definicoes-topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.definicoes-topo h1 {
+    margin: 0;
+    font-size: 34px;
+}
+
+.definicoes-topo p {
+    margin: 6px 0 0;
+    color: #888;
+}
+
+.botao-voltar-def {
+    min-height: 44px;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #2d3d52;
+    border-radius: 12px;
+    background: #111a26;
+    color: #8fc3ff;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.definicoes-grade {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.def-card {
+    padding: 20px;
+    border: 1px solid #292929;
+    border-radius: 16px;
+    background: #121212;
+}
+
+.def-cabecalho {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin-bottom: 18px;
+}
+
+.def-cabecalho > span {
+    width: 46px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: #18283a;
+    font-size: 22px;
+}
+
+.def-cabecalho strong,
+.def-cabecalho small {
+    display: block;
+}
+
+.def-cabecalho strong {
+    font-size: 20px;
+}
+
+.def-cabecalho small {
+    margin-top: 3px;
+    color: #777;
+}
+
+.def-linha {
+    min-height: 45px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    border-top: 1px solid #252525;
+}
+
+.def-linha span {
+    color: #888;
+}
+
+.estado-ok {
+    color: #9dd7a7;
+}
+
+.def-nota {
+    margin-top: 22px;
+    padding: 16px 18px;
+    border: 1px solid #292929;
+    border-radius: 14px;
+    background: #101010;
+    color: #888;
+}
+
+@media (max-width: 800px) {
+    .definicoes-grade {
+        grid-template-columns: 1fr;
+    }
+
+    .definicoes-topo {
+        flex-direction: column;
+    }
+}
+
+
+/* Definições editáveis */
+.def-form {
+    margin: 0;
+}
+
+.def-edicao {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.def-edicao input {
+    width: 78px;
+    height: 38px;
+    padding: 0 9px;
+    border: 1px solid #333;
+    border-radius: 9px;
+    background: #0d0d0d;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.def-edicao span {
+    color: #888;
+}
+
+.def-edicao button {
+    height: 38px;
+    padding: 0 13px;
+    border: 1px solid #315273;
+    border-radius: 9px;
+    background: #18283a;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.def-edicao button:hover {
+    background: #20364e;
+}
+
+.def-guardado {
+    padding: 9px 0 0;
+    color: #9dd7a7;
+    font-size: 13px;
+    text-align: right;
+}

@@ -44,8 +44,35 @@ def garantir_esquema():
     if "alerta_inatividade_visto_em" not in colunas_clientes:
         con.execute("ALTER TABLE clientes ADD COLUMN alerta_inatividade_visto_em TEXT")
 
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS definicoes (
+            chave TEXT PRIMARY KEY,
+            valor TEXT NOT NULL
+        )
+    """)
+    con.execute("""
+        INSERT OR IGNORE INTO definicoes (chave, valor)
+        VALUES ('dias_inatividade', '60')
+    """)
+
     con.commit()
     con.close()
+
+
+def obter_definicao(con, chave, padrao=None):
+    row = con.execute(
+        "SELECT valor FROM definicoes WHERE chave = ?",
+        (chave,)
+    ).fetchone()
+    return row["valor"] if row else padrao
+
+
+def obter_dias_inatividade(con):
+    try:
+        valor = int(obter_definicao(con, "dias_inatividade", "60"))
+        return valor if 15 <= valor <= 365 else 60
+    except (TypeError, ValueError):
+        return 60
 
 
 def concretizar_marcacoes_vencidas(con):
@@ -62,8 +89,10 @@ def concretizar_marcacoes_vencidas(con):
     con.commit()
 
 
-def obter_clientes_inativos(con, dias=60, apenas_pendentes=False):
+def obter_clientes_inativos(con, dias=None, apenas_pendentes=False):
     """Clientes inativos; opcionalmente só os alertas ainda não consultados."""
+    if dias is None:
+        dias = obter_dias_inatividade(con)
     limite = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%dT%H:%M")
     return con.execute(
         """
@@ -257,14 +286,49 @@ def produtos():
     return render_template("produtos.html", produtos=produtos_lista)
 
 
+@app.route("/definicoes", methods=["GET", "POST"])
+def definicoes():
+    con = get_db()
+
+    if request.method == "POST":
+        try:
+            dias = int(request.form.get("dias_inatividade", "60"))
+        except ValueError:
+            dias = 60
+
+        if dias < 15:
+            dias = 15
+        elif dias > 365:
+            dias = 365
+
+        con.execute("""
+            INSERT INTO definicoes (chave, valor)
+            VALUES ('dias_inatividade', ?)
+            ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor
+        """, (str(dias),))
+        con.commit()
+        con.close()
+        return redirect(url_for("definicoes", salvo="1"))
+
+    dias = obter_dias_inatividade(con)
+    con.close()
+
+    return render_template(
+        "definicoes.html",
+        dias_inatividade=dias,
+        salvo=request.args.get("salvo") == "1",
+    )
+
+
 @app.route("/clientes")
 def clientes():
     pesquisa = request.args.get("q", "").strip()
     apenas_inativos = request.args.get("inativos") == "1"
     top10 = request.args.get("top") == "10"
     termo = f"%{pesquisa}%"
-    limite_inatividade = (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M")
     con = get_db()
+    dias_inatividade = obter_dias_inatividade(con)
+    limite_inatividade = (datetime.now() - timedelta(days=dias_inatividade)).strftime("%Y-%m-%dT%H:%M")
     clientes_lista = con.execute("""
         SELECT
             c.id,
@@ -350,7 +414,8 @@ def cliente_detalhe(cliente_id):
         WHERE cliente_id = ? AND estado = 'concluída'
     """, (cliente_id,)).fetchone()[0]
 
-    limite_inatividade = (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M")
+    dias_inatividade = obter_dias_inatividade(con)
+    limite_inatividade = (datetime.now() - timedelta(days=dias_inatividade)).strftime("%Y-%m-%dT%H:%M")
     if ultimo_corte and ultimo_corte <= limite_inatividade:
         con.execute("""
             UPDATE clientes

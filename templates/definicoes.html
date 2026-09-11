@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Definições — Blessed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='definicoes.css') }}">
+</head>
+
+<body>
+<div class="app app-semana">
+<div class="estrutura-semana">
+
+<aside class="lateral-marca">
+    <div class="marca marca-lateral">
+        <img src="{{ url_for('static', filename='blessed-logo.png') }}"
+             class="logo-blessed" alt="Blessed">
+    </div>
+
+    <nav class="menu-principal">
+        <a href="/semana" class="menu-item">
+            <span class="menu-icone">▣</span><span>Agenda</span>
+        </a>
+
+        <a href="/clientes" class="menu-item">
+            <span class="menu-icone">♙</span><span>Clientes</span>
+        </a>
+
+        <a href="/servicos" class="menu-item">
+            <span class="menu-icone">✂</span><span>Serviços</span>
+        </a>
+
+        <a href="/produtos" class="menu-item">
+            <span class="menu-icone">▤</span><span>Produtos</span>
+        </a>
+
+        <button class="menu-item" type="button">
+            <span class="menu-icone">✉</span><span>Comunicações</span>
+        </button>
+
+        <a href="/definicoes" class="menu-item ativo">
+            <span class="menu-icone">⚙</span><span>Definições</span>
+        </a>
+
+        <a href="https://blessed.pjcorelabs.com/cdn-cgi/access/logout"
+           class="menu-item">
+            <span class="menu-icone">⏻</span><span>Sair</span>
+        </a>
+    </nav>
+</aside>
+
+<main class="main-semana definicoes-main">
+
+    <section class="definicoes-topo">
+        <div>
+            <h1>Definições</h1>
+            <p>Configuração geral da Barbearia Blessed.</p>
+        </div>
+
+        <a href="/semana" class="botao-voltar-def">
+            Voltar à agenda
+        </a>
+    </section>
+
+    <section class="definicoes-grade">
+
+        <article class="def-card">
+            <div class="def-cabecalho">
+                <span>🏪</span>
+                <div>
+                    <strong>Barbearia</strong>
+                    <small>Informação geral</small>
+                </div>
+            </div>
+
+            <div class="def-linha">
+                <span>Nome</span>
+                <strong>Blessed</strong>
+            </div>
+        </article>
+
+        <article class="def-card">
+            <div class="def-cabecalho">
+                <span>▣</span>
+                <div>
+                    <strong>Agenda</strong>
+                    <small>Intervalo visível na agenda</small>
+                </div>
+            </div>
+
+            <div class="def-linha">
+                <span>Vista da agenda</span>
+                <strong>08:00–16:00</strong>
+            </div>
+        </article>
+
+        <article class="def-card">
+            <div class="def-cabecalho">
+                <span>♙</span>
+                <div>
+                    <strong>Clientes</strong>
+                    <small>Alertas e acompanhamento</small>
+                </div>
+            </div>
+
+            <form method="post" class="def-form">
+                <div class="def-linha">
+                    <span>Alerta de inatividade</span>
+                    <div class="def-edicao">
+                        <input
+                            type="number"
+                            name="dias_inatividade"
+                            min="15"
+                            max="365"
+                            value="{{ dias_inatividade }}"
+                            aria-label="Dias para alerta de inatividade">
+                        <span>dias</span>
+                        <button type="submit">Guardar</button>
+                    </div>
+                </div>
+
+                {% if salvo %}
+                <div class="def-guardado">Definição guardada.</div>
+                {% endif %}
+            </form>
+        </article>
+
+        <article class="def-card">
+            <div class="def-cabecalho">
+                <span>🔒</span>
+                <div>
+                    <strong>Segurança</strong>
+                    <small>Acesso à aplicação</small>
+                </div>
+            </div>
+
+            <div class="def-linha">
+                <span>Proteção</span>
+                <strong class="estado-ok">Cloudflare Access ativo</strong>
+            </div>
+
+            <div class="def-linha">
+                <span>Acesso</span>
+                <strong>Utilizadores autorizados</strong>
+            </div>
+        </article>
+
+    </section>
+
+    <div class="def-nota">
+        O alerta de inatividade pode ser alterado aqui. As restantes definições serão ativadas apenas quando fizer sentido para o funcionamento da barbearia.
+    </div>
+
+</main>
+</div>
+</div>
+</body>
+</html>
