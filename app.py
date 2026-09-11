@@ -21,6 +21,18 @@ def normalizar_telefone(numero):
     return "".join(c for c in numero if c.isdigit() or c == "+")
 
 
+@app.template_filter("data_pt")
+def data_pt(valor):
+    """Apresenta datas ISO em DD/MM/AAAA sem alterar o valor guardado na base."""
+    if not valor:
+        return "—"
+    try:
+        texto = str(valor)
+        return datetime.fromisoformat(texto).strftime("%d/%m/%Y")
+    except (ValueError, TypeError):
+        return valor
+
+
 def garantir_esquema():
     """Aplica pequenas migrações compatíveis sem apagar dados existentes."""
     con = get_db()
@@ -43,6 +55,33 @@ def concretizar_marcacoes_vencidas(con):
         (limite.strftime("%Y-%m-%dT%H:%M"),),
     )
     con.commit()
+
+
+def obter_clientes_inativos(con, dias=60):
+    """Clientes cujo último corte concluído ocorreu há pelo menos 'dias' dias."""
+    limite = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%dT%H:%M")
+    return con.execute(
+        """
+        SELECT
+            c.id,
+            c.nome,
+            c.email,
+            COALESCE((
+                SELECT t.numero
+                FROM telefones t
+                WHERE t.cliente_id = c.id AND t.atual = 1
+                ORDER BY t.id DESC
+                LIMIT 1
+            ), '') AS telefone,
+            MAX(CASE WHEN m.estado = 'concluída' THEN m.inicio END) AS ultimo_corte
+        FROM clientes c
+        JOIN marcacoes m ON m.cliente_id = c.id
+        GROUP BY c.id
+        HAVING ultimo_corte IS NOT NULL AND ultimo_corte <= ?
+        ORDER BY ultimo_corte ASC
+        """,
+        (limite,),
+    ).fetchall()
 
 
 @app.route("/")
@@ -135,6 +174,7 @@ def semana():
         WHERE substr(m.inicio, 1, 10) BETWEEN ? AND ? AND m.estado != 'cancelada'
         ORDER BY m.inicio
     """, (inicio_semana.isoformat(), fim_semana.isoformat())).fetchall()
+    clientes_inativos = obter_clientes_inativos(con)
     con.close()
 
     dias = []
@@ -169,13 +209,24 @@ def semana():
         horas_grelha.append(hora_atual.strftime("%H:%M"))
         hora_atual += timedelta(minutes=30)
 
-    return render_template("semana.html", inicio_semana=inicio_semana, fim_semana=fim_semana, semana_anterior=semana_anterior, semana_seguinte=semana_seguinte, dias=dias, horas_grelha=horas_grelha)
+    return render_template(
+        "semana.html",
+        inicio_semana=inicio_semana,
+        fim_semana=fim_semana,
+        semana_anterior=semana_anterior,
+        semana_seguinte=semana_seguinte,
+        dias=dias,
+        horas_grelha=horas_grelha,
+        clientes_inativos=clientes_inativos,
+    )
 
 
 @app.route("/clientes")
 def clientes():
     pesquisa = request.args.get("q", "").strip()
+    apenas_inativos = request.args.get("inativos") == "1"
     termo = f"%{pesquisa}%"
+    limite_inatividade = (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M")
     con = get_db()
     clientes_lista = con.execute("""
         SELECT
@@ -195,16 +246,24 @@ def clientes():
         FROM clientes c
         LEFT JOIN telefones tp ON tp.cliente_id = c.id AND tp.atual = 1
         LEFT JOIN marcacoes m ON m.cliente_id = c.id
-        WHERE ? = ''
+        WHERE (? = ''
            OR c.nome LIKE ? COLLATE NOCASE
            OR COALESCE(c.email, '') LIKE ? COLLATE NOCASE
            OR COALESCE(tp.numero, '') LIKE ?
-           OR COALESCE(tp.numero_normalizado, '') LIKE ?
+           OR COALESCE(tp.numero_normalizado, '') LIKE ?)
         GROUP BY c.id
+        HAVING (? = 0 OR (ultimo_corte IS NOT NULL AND ultimo_corte <= ?))
         ORDER BY c.nome COLLATE NOCASE
-    """, (pesquisa, termo, termo, termo, termo)).fetchall()
+    """, (pesquisa, termo, termo, termo, termo, 1 if apenas_inativos else 0, limite_inatividade)).fetchall()
+    total_inativos = len(obter_clientes_inativos(con))
     con.close()
-    return render_template("clientes.html", clientes=clientes_lista, pesquisa=pesquisa)
+    return render_template(
+        "clientes.html",
+        clientes=clientes_lista,
+        pesquisa=pesquisa,
+        apenas_inativos=apenas_inativos,
+        total_inativos=total_inativos,
+    )
 
 
 @app.route("/clientes/<int:cliente_id>")
