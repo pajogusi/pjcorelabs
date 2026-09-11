@@ -36,7 +36,7 @@
             <section class="ficha-cliente">
                 <div><span>Telefone</span><strong>{{ cliente.telefone or '—' }}</strong></div>
                 <div><span>Email</span><strong>{{ cliente.email or '—' }}</strong></div>
-                <div><span>Data de nascimento</span><strong>{{ cliente.data_nascimento or '—' }}</strong></div>
+                <div><span>Data de nascimento</span><strong>{{ cliente.data_nascimento|data_pt }}</strong></div>
             </section>
 
             <section class="historico-cliente">
@@ -48,7 +48,7 @@
                     {% for m in historico %}
                     <article class="historico-item">
                         <div>
-                            <strong>{{ m.inicio[:10] }} · {{ m.inicio[11:16] }}</strong>
+                            <strong>{{ m.inicio|data_pt }} · {{ m.inicio[11:16] }}</strong>
                             <span>{{ m.servico }} · {{ m.duracao_minutos }} min</span>
                             {% if m.observacoes %}<small>{{ m.observacoes }}</small>{% endif %}
                         </div>
