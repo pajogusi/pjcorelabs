@@ -233,6 +233,30 @@ def semana():
     )
 
 
+@app.route("/servicos")
+def servicos():
+    servicos_lista = [
+        {"nome": "Corte"},
+        {"nome": "Barba"},
+        {"nome": "Corte + Barba"},
+    ]
+    return render_template("servicos.html", servicos=servicos_lista)
+
+
+@app.route("/produtos")
+def produtos():
+    produtos_lista = [
+        {
+            "nome": "Gel de cabelo",
+            "descricao": "Gel de fixação para styling diário.",
+            "preco": "8,00 €",
+            "imagem": "produto-gel-demo.svg",
+            "demo": True,
+        }
+    ]
+    return render_template("produtos.html", produtos=produtos_lista)
+
+
 @app.route("/clientes")
 def clientes():
     pesquisa = request.args.get("q", "").strip()

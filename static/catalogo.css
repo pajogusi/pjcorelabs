@@ -1,0 +1,256 @@
+* { box-sizing: border-box; }
+
+.catalogo-main {
+    padding: 24px 28px 40px;
+    min-width: 0;
+}
+
+.catalogo-topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 26px;
+}
+
+.catalogo-topo h1 {
+    margin: 0;
+    font-size: 34px;
+}
+
+.catalogo-topo p {
+    margin: 6px 0 0;
+    color: #888;
+}
+
+.botao-voltar-catalogo {
+    min-height: 44px;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #2d3d52;
+    border-radius: 12px;
+    background: #111a26;
+    color: #8fc3ff;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.servicos-grade,
+.produtos-grade {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.servico-simples {
+    min-height: 125px;
+    padding: 22px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    border: 1px solid #292929;
+    border-radius: 16px;
+    background: #121212;
+}
+
+.servico-tesoura {
+    width: 54px;
+    height: 54px;
+    flex: 0 0 54px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 14px;
+    background: #18283a;
+    font-size: 27px;
+}
+
+.servico-simples strong {
+    font-size: 22px;
+}
+
+.produto-card {
+    overflow: hidden;
+    border: 1px solid #292929;
+    border-radius: 18px;
+    background: #121212;
+}
+
+.produto-imagem {
+    height: 245px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #191919;
+}
+
+.produto-imagem img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 22px;
+}
+
+.produto-demo {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #513e13;
+    color: #f3d884;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.produto-info {
+    padding: 18px 20px 21px;
+}
+
+.produto-info strong {
+    display: block;
+    font-size: 22px;
+}
+
+.produto-info p {
+    min-height: 40px;
+    margin: 8px 0 18px;
+    color: #999;
+    line-height: 1.4;
+}
+
+.produto-preco {
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+}
+
+.nota-demo {
+    margin-top: 22px;
+    padding: 16px 18px;
+    border: 1px solid #292929;
+    border-radius: 14px;
+    background: #101010;
+    color: #888;
+}
+
+@media (max-width: 1050px) {
+    .servicos-grade,
+    .produtos-grade {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    .catalogo-main {
+        padding: 18px 12px 30px;
+    }
+
+    .catalogo-topo {
+        flex-direction: column;
+    }
+
+    .catalogo-topo h1 {
+        font-size: 28px;
+    }
+
+    .servicos-grade,
+    .produtos-grade {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* PRODUTOS — grelha mais compacta para catálogo real */
+.produtos-grade {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.produto-imagem {
+    height: 190px;
+}
+
+.produto-imagem img {
+    padding: 16px;
+}
+
+.produto-info {
+    padding: 15px 16px 17px;
+}
+
+.produto-info strong {
+    font-size: 19px;
+}
+
+.produto-info p {
+    min-height: 36px;
+    margin: 7px 0 14px;
+    font-size: 14px;
+}
+
+.produto-preco {
+    font-size: 23px;
+}
+
+@media (max-width: 1200px) {
+    .produtos-grade {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .produtos-grade {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .produtos-grade {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Pesquisa de produtos */
+.produtos-pesquisa {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding: 0 15px;
+    min-height: 50px;
+    border: 1px solid #292929;
+    border-radius: 13px;
+    background: #111;
+}
+
+.pesquisa-icone {
+    color: #888;
+    font-size: 22px;
+}
+
+.produtos-pesquisa input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    font-size: 15px;
+}
+
+.produtos-pesquisa input::placeholder {
+    color: #777;
+}
+
+#produtos-encontrados {
+    color: #888;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.produto-card[hidden] {
+    display: none;
+}
