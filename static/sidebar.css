@@ -34,13 +34,11 @@
     object-position: center;
 }
 
-/* Compatibilidade enquanto existir marca provisória em texto. */
 .marca-lateral strong,
 .marca-lateral span {
     display: none;
 }
 
-/* Navegação principal: compacta, legível e preparada para crescer. */
 .menu-principal {
     width: 100%;
     display: flex;
@@ -85,6 +83,58 @@
     font-size: 17px;
 }
 
+.alerta-clientes-inativos {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 24px;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 10px;
+    padding: 10px 14px;
+    border: 1px solid #7c5a26;
+    border-radius: 12px;
+    background: #241b0d;
+    color: #fff;
+    text-decoration: none;
+}
+
+.alerta-clientes-inativos:hover,
+.alerta-clientes-inativos:focus-visible {
+    background: #302310;
+    border-color: #a77932;
+}
+
+.alerta-clientes-icone {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #c58a2b;
+    color: #111;
+    font-size: 23px;
+    font-weight: 900;
+}
+
+.alerta-clientes-texto strong,
+.alerta-clientes-texto small {
+    display: block;
+}
+
+.alerta-clientes-texto strong {
+    font-size: 15px;
+}
+
+.alerta-clientes-texto small {
+    margin-top: 2px;
+    color: #d8c39d;
+}
+
+.alerta-clientes-seta {
+    font-size: 28px;
+    color: #e5b96c;
+}
+
 @media (max-width: 900px) {
     .estrutura-semana {
         grid-template-columns: 145px minmax(0, 1fr);
@@ -105,7 +155,6 @@
     }
 }
 
-/* Telemóvel: modo de recurso. Regras isoladas do layout de tablet/desktop. */
 @media (max-width: 700px) {
     .app-semana .estrutura-semana {
         grid-template-columns: minmax(0, 1fr) !important;
@@ -179,6 +228,21 @@
         font-size: 18px;
         line-height: 1;
     }
+
+    .alerta-clientes-inativos {
+        grid-template-columns: 34px minmax(0, 1fr) 18px;
+        padding: 8px 10px;
+        gap: 8px;
+    }
+
+    .alerta-clientes-icone {
+        width: 30px;
+        height: 30px;
+        font-size: 19px;
+    }
+
+    .alerta-clientes-texto strong { font-size: 13px; }
+    .alerta-clientes-texto small { font-size: 11px; }
 }
 
 /* LEGIBILIDADE TABLET — feedback do Bruno */
