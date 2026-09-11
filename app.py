@@ -206,6 +206,33 @@ def semana():
     semana_anterior = inicio_semana - timedelta(days=7)
     semana_seguinte = inicio_semana + timedelta(days=7)
 
+    # Navegação rápida por meses: mês atual + 5 seguintes
+    nomes_meses = [
+        "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+        "Jul", "Ago", "Set", "Out", "Nov", "Dez"
+    ]
+
+    meses_rapidos = []
+    base_mes = date.today().replace(day=1)
+
+    for offset in range(6):
+        ano = base_mes.year + ((base_mes.month - 1 + offset) // 12)
+        mes = ((base_mes.month - 1 + offset) % 12) + 1
+        primeiro_dia = date(ano, mes, 1)
+
+        meses_rapidos.append({
+            "nome": nomes_meses[mes - 1],
+            "ano": ano,
+            "data": primeiro_dia.isoformat(),
+            "ativo": (
+                inicio_semana.year == ano
+                and (
+                    inicio_semana.month == mes
+                    or fim_semana.month == mes
+                )
+            ),
+        })
+
     con = get_db()
     concretizar_marcacoes_vencidas(con)
     marcacoes = con.execute("""
@@ -259,6 +286,7 @@ def semana():
         dias=dias,
         horas_grelha=horas_grelha,
         clientes_inativos=clientes_inativos,
+        meses_rapidos=meses_rapidos,
     )
 
 

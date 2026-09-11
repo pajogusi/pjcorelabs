@@ -15,3 +15,5 @@ __pycache__/
 # Segredos
 .env
 .env.*
+blessed.log
+backups/

@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='sidebar.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='catalogo.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='screensaver.css') }}">
 </head>
 <body>
 <div class="app app-semana">
@@ -95,5 +96,6 @@ function filtrarProdutos() {
 
 pesquisa.addEventListener('input', filtrarProdutos);
 </script>
+<script src="{{ url_for('static', filename='screensaver.js') }}"></script>
 </body>
 </html>
