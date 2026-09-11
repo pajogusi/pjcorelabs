@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Clientes — Blessed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='clientes.css') }}">
+</head>
+<body>
+<div class="app app-semana">
+    <div class="estrutura-semana">
+        <aside class="lateral-marca">
+            <div class="marca marca-lateral"><img src="{{ url_for('static', filename='blessed-logo.png') }}" alt="Barbearia Blessed" class="logo-blessed"></div>
+            <nav class="menu-principal">
+                <a href="/semana" class="menu-item" title="Agenda"><span class="menu-icone">▣</span><span>Agenda</span></a>
+                <a href="/clientes" class="menu-item ativo" title="Clientes"><span class="menu-icone">♙</span><span>Clientes</span></a>
+                <button class="menu-item" type="button" title="Serviços"><span class="menu-icone">✂</span><span>Serviços</span></button>
+                <button class="menu-item" type="button" title="Comunicações"><span class="menu-icone">✉</span><span>Comunicações</span></button>
+                <button class="menu-item" type="button" title="Definições"><span class="menu-icone">⚙</span><span>Definições</span></button>
+                <a href="https://blessed.pjcorelabs.com/cdn-cgi/access/logout" class="menu-item" title="Terminar sessão"><span class="menu-icone">⏻</span><span>Sair</span></a>
+            </nav>
+        </aside>
+
+        <main class="main-semana clientes-main">
+            <section class="clientes-topo">
+                <div>
+                    <h1>Clientes</h1>
+                    <p>{{ clientes|length }} {% if clientes|length == 1 %}cliente{% else %}clientes{% endif %}{% if pesquisa %} encontrados{% endif %}</p>
+                </div>
+                <a class="botao-voltar-agenda" href="/semana">Voltar à agenda</a>
+            </section>
+
+            <form class="pesquisa-clientes" method="get" action="/clientes">
+                <input type="search" name="q" value="{{ pesquisa }}" placeholder="Pesquisar por nome, telefone ou email" autocomplete="off">
+                <button type="submit">Pesquisar</button>
+                {% if pesquisa %}<a href="/clientes">Limpar</a>{% endif %}
+            </form>
+
+            <section class="lista-clientes">
+                {% if clientes %}
+                    {% for cliente in clientes %}
+                    <a class="cliente-card" href="/clientes/{{ cliente.id }}">
+                        <div class="cliente-identidade">
+                            <strong>{{ cliente.nome }}</strong>
+                            <span>{{ cliente.telefone or 'Sem telefone' }}</span>
+                            {% if cliente.email %}<small>{{ cliente.email }}</small>{% endif %}
+                        </div>
+                        <div class="cliente-resumo">
+                            <span>{{ cliente.total_marcacoes }} {% if cliente.total_marcacoes == 1 %}marcação{% else %}marcações{% endif %}</span>
+                            {% if cliente.ultimo_corte %}<small>Último corte: {{ cliente.ultimo_corte[:10] }}</small>{% else %}<small>Sem cortes concluídos</small>{% endif %}
+                        </div>
+                        <span class="cliente-seta">›</span>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <div class="clientes-vazio">
+                        <strong>Nenhum cliente encontrado</strong>
+                        <span>Os clientes passam a ser criados automaticamente quando fizeres uma marcação.</span>
+                    </div>
+                {% endif %}
+            </section>
+        </main>
+    </div>
+</div>
+</body>
+</html>
