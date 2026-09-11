@@ -26,16 +26,22 @@
         <main class="main-semana clientes-main">
             <section class="clientes-topo">
                 <div>
-                    <h1>Clientes</h1>
+                    <h1>{% if apenas_inativos %}Clientes inativos{% else %}Clientes{% endif %}</h1>
                     <p>{{ clientes|length }} {% if clientes|length == 1 %}cliente{% else %}clientes{% endif %}{% if pesquisa %} encontrados{% endif %}</p>
                 </div>
                 <a class="botao-voltar-agenda" href="/semana">Voltar à agenda</a>
             </section>
 
+            <div class="filtros-clientes">
+                <a href="/clientes" class="filtro-cliente {% if not apenas_inativos %}ativo{% endif %}">Todos</a>
+                <a href="/clientes?inativos=1" class="filtro-cliente filtro-alerta {% if apenas_inativos %}ativo{% endif %}">Inativos +2 meses{% if total_inativos %}<span>{{ total_inativos }}</span>{% endif %}</a>
+            </div>
+
             <form class="pesquisa-clientes" method="get" action="/clientes">
+                {% if apenas_inativos %}<input type="hidden" name="inativos" value="1">{% endif %}
                 <input type="search" name="q" value="{{ pesquisa }}" placeholder="Pesquisar por nome, telefone ou email" autocomplete="off">
                 <button type="submit">Pesquisar</button>
-                {% if pesquisa %}<a href="/clientes">Limpar</a>{% endif %}
+                {% if pesquisa %}<a href="/clientes{% if apenas_inativos %}?inativos=1{% endif %}">Limpar</a>{% endif %}
             </form>
 
             <section class="lista-clientes">
@@ -49,15 +55,15 @@
                         </div>
                         <div class="cliente-resumo">
                             <span>{{ cliente.total_marcacoes }} {% if cliente.total_marcacoes == 1 %}marcação{% else %}marcações{% endif %}</span>
-                            {% if cliente.ultimo_corte %}<small>Último corte: {{ cliente.ultimo_corte[:10] }}</small>{% else %}<small>Sem cortes concluídos</small>{% endif %}
+                            {% if cliente.ultimo_corte %}<small>Último corte: {{ cliente.ultimo_corte|data_pt }}</small>{% else %}<small>Sem cortes concluídos</small>{% endif %}
                         </div>
                         <span class="cliente-seta">›</span>
                     </a>
                     {% endfor %}
                 {% else %}
                     <div class="clientes-vazio">
-                        <strong>Nenhum cliente encontrado</strong>
-                        <span>Os clientes passam a ser criados automaticamente quando fizeres uma marcação.</span>
+                        <strong>{% if apenas_inativos %}Sem clientes inativos{% else %}Nenhum cliente encontrado{% endif %}</strong>
+                        <span>{% if apenas_inativos %}Não há clientes com último corte concluído há mais de 2 meses.{% else %}Os clientes passam a ser criados automaticamente quando fizeres uma marcação.{% endif %}</span>
                     </div>
                 {% endif %}
             </section>
