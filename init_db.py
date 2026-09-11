@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS marcacoes (
     duracao_minutos INTEGER NOT NULL
         CHECK (duracao_minutos > 0),
     servico TEXT NOT NULL,
+    observacoes TEXT,
     estado TEXT NOT NULL DEFAULT 'marcada'
         CHECK (estado IN (
             'marcada',
