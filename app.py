@@ -1,4 +1,8 @@
+import json
+import os
 import sqlite3
+import urllib.error
+import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -7,6 +11,51 @@ from flask import Flask, render_template, request, redirect, url_for
 app = Flask(__name__)
 
 DB = Path(__file__).with_name("blessed.db")
+
+
+
+def enviar_email_brevo(destinatario, assunto, texto):
+    """Envia email transacional pela Brevo. Devolve True/False sem interromper a aplicação."""
+    destinatario = (destinatario or "").strip()
+    if not destinatario:
+        return False
+
+    api_key = os.environ.get("BREVO_API_KEY", "").strip()
+    if not api_key:
+        print("EMAIL: BREVO_API_KEY não configurada")
+        return False
+
+    payload = {
+        "sender": {
+            "name": "Blessed Barbearia Testes",
+            "email": "pjgs.form@gmail.com",
+        },
+        "to": [
+            {
+                "email": destinatario,
+            }
+        ],
+        "subject": assunto,
+        "textContent": texto,
+    }
+
+    req = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "accept": "application/json",
+            "api-key": api_key,
+            "content-type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resposta:
+            return 200 <= resposta.status < 300
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as erro:
+        print(f"EMAIL: falha no envio Brevo: {erro}")
+        return False
 
 
 def get_db():
@@ -53,6 +102,26 @@ def garantir_esquema():
     con.execute("""
         INSERT OR IGNORE INTO definicoes (chave, valor)
         VALUES ('dias_inatividade', '60')
+    """)
+
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS email_fila (
+            id INTEGER PRIMARY KEY,
+            cliente_id INTEGER NOT NULL,
+            marcacao_id INTEGER,
+            email_destino TEXT NOT NULL,
+            tipo TEXT NOT NULL,
+            assunto TEXT NOT NULL,
+            mensagem TEXT NOT NULL,
+            estado TEXT NOT NULL DEFAULT 'pendente',
+            tentativas INTEGER NOT NULL DEFAULT 0,
+            previsto_para TEXT,
+            idempotency_key TEXT UNIQUE,
+            enviado_em TEXT,
+            ultima_tentativa_em TEXT,
+            erro TEXT,
+            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
     """)
 
     con.commit()
@@ -598,12 +667,73 @@ def nova_marcacao():
             (cliente_id, inicio, duracao_minutos, servico, observacoes)
             VALUES (?, ?, ?, ?, ?)
         """, (cliente_id, inicio, duracao, servico, observacoes))
+        marcacao_id = cur.lastrowid
+
+        # Lembrete por email às 18:00 do dia anterior.
+        # Só é criado se essa hora ainda estiver no futuro.
+        if email:
+            previsto_para = datetime.combine(
+                novo_inicio.date() - timedelta(days=1),
+                datetime.strptime("18:00", "%H:%M").time()
+            )
+
+            if previsto_para > datetime.now():
+                data_formatada = novo_inicio.strftime("%d/%m/%Y")
+                hora_formatada = novo_inicio.strftime("%H:%M")
+                assunto_lembrete = "Lembrete da sua marcação - Blessed Barbearia"
+                mensagem_lembrete = f"""Olá {nome},
+
+Lembramos que tem uma marcação na Blessed Barbearia amanhã.
+
+Data: {data_formatada}
+Hora: {hora_formatada}
+Serviço: {servico}
+
+Obrigado,
+Blessed Barbearia
+"""
+
+                cur.execute("""
+                    INSERT OR IGNORE INTO email_fila
+                    (cliente_id, marcacao_id, email_destino, tipo,
+                     assunto, mensagem, previsto_para, idempotency_key)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    cliente_id,
+                    marcacao_id,
+                    email,
+                    "lembrete_dia_anterior",
+                    assunto_lembrete,
+                    mensagem_lembrete,
+                    previsto_para.isoformat(timespec="seconds"),
+                    f"lembrete_dia_anterior:{marcacao_id}",
+                ))
+
         con.commit()
     except Exception:
         con.rollback()
         raise
     finally:
         con.close()
+
+    if email:
+        data_formatada = novo_inicio.strftime("%d/%m/%Y")
+        hora_formatada = novo_inicio.strftime("%H:%M")
+
+        assunto = "Confirmação da sua marcação - Blessed Barbearia"
+        texto = f"""Olá {nome},
+
+A sua marcação na Blessed Barbearia está confirmada.
+
+Data: {data_formatada}
+Hora: {hora_formatada}
+Serviço: {servico}
+
+Obrigado,
+Blessed Barbearia
+"""
+
+        enviar_email_brevo(email, assunto, texto)
 
     return redirect(url_for("semana", data=novo_inicio.date().isoformat()))
 

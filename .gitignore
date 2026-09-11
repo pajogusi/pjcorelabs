@@ -17,3 +17,7 @@ __pycache__/
 .env.*
 blessed.log
 backups/
+app.py.bak-*
+
+# Backups locais de desenvolvimento
+*.bak-*
