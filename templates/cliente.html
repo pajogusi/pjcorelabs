@@ -35,6 +35,12 @@
                 <a class="botao-voltar-agenda" href="/semana">Agenda</a>
             </section>
 
+            {% if falta_ativa %}
+            <div class="alerta-falta-cliente">
+                CLIENTE FALTOU À ÚLTIMA MARCAÇÃO SEM AVISAR
+            </div>
+            {% endif %}
+
             <section class="ficha-cliente">
                 <div><span>Telefone</span><strong>{{ cliente.telefone or '—' }}</strong></div>
                 <div><span>Email</span><strong>{{ cliente.email or '—' }}</strong></div>

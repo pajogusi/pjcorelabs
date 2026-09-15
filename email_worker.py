@@ -2,85 +2,82 @@
 
 from datetime import datetime
 
-from app import get_db, enviar_email_brevo
+from app import get_db, enviar_sms_smsgate
 
 
 def processar_fila():
     agora = datetime.now().isoformat(timespec="seconds")
     con = get_db()
 
-    emails = con.execute("""
+    mensagens = con.execute("""
         SELECT
-            e.id,
-            e.marcacao_id,
-            e.email_destino,
-            e.assunto,
-            e.mensagem,
-            e.tentativas,
+            s.id,
+            s.marcacao_id,
+            s.telefone_destino,
+            s.mensagem,
+            s.tentativas,
             m.estado AS marcacao_estado
-        FROM email_fila e
-        LEFT JOIN marcacoes m ON m.id = e.marcacao_id
-        WHERE e.estado = 'pendente'
-          AND e.previsto_para IS NOT NULL
-          AND e.previsto_para <= ?
-        ORDER BY e.previsto_para, e.id
+        FROM sms_fila s
+        LEFT JOIN marcacoes m ON m.id = s.marcacao_id
+        WHERE s.estado = 'pendente'
+          AND s.previsto_para IS NOT NULL
+          AND s.previsto_para <= ?
+        ORDER BY s.previsto_para, s.id
     """, (agora,)).fetchall()
 
-    print(f"EMAIL WORKER: {len(emails)} email(s) para processar")
+    print(f"SMS WORKER: {len(mensagens)} SMS para processar")
 
-    for email in emails:
-        email_id = email["id"]
+    for sms in mensagens:
+        sms_id = sms["id"]
 
-        # Um lembrete associado a uma marcação só pode ser enviado
-        # enquanto a marcação continuar efetivamente marcada.
-        if email["marcacao_id"] is not None and email["marcacao_estado"] != "marcada":
+        # Não enviar lembrete se a marcação já não estiver marcada.
+        if sms["marcacao_id"] is not None and sms["marcacao_estado"] != "marcada":
             con.execute("""
-                UPDATE email_fila
+                UPDATE sms_fila
                 SET estado = 'cancelado',
                     erro = ?,
                     ultima_tentativa_em = ?
                 WHERE id = ? AND estado = 'pendente'
             """, (
-                f"Marcação em estado: {email['marcacao_estado'] or 'inexistente'}",
+                f"Marcação em estado: {sms['marcacao_estado'] or 'inexistente'}",
                 agora,
-                email_id,
+                sms_id,
             ))
             con.commit()
-            print(f"EMAIL {email_id}: cancelado - marcação não está marcada")
+            print(f"SMS {sms_id}: cancelado - marcação não está marcada")
             continue
 
-        enviado = enviar_email_brevo(
-            email["email_destino"],
-            email["assunto"],
-            email["mensagem"],
+        enviado = enviar_sms_smsgate(
+            sms["telefone_destino"],
+            sms["mensagem"],
         )
 
         if enviado:
             con.execute("""
-                UPDATE email_fila
+                UPDATE sms_fila
                 SET estado = 'enviado',
                     tentativas = tentativas + 1,
                     enviado_em = ?,
                     ultima_tentativa_em = ?,
                     erro = NULL
                 WHERE id = ? AND estado = 'pendente'
-            """, (agora, agora, email_id))
+            """, (agora, agora, sms_id))
             con.commit()
-            print(f"EMAIL {email_id}: enviado")
+            print(f"SMS {sms_id}: enviado")
         else:
             con.execute("""
-                UPDATE email_fila
+                UPDATE sms_fila
                 SET tentativas = tentativas + 1,
                     ultima_tentativa_em = ?,
                     erro = ?
                 WHERE id = ? AND estado = 'pendente'
             """, (
                 agora,
-                "Falha no envio pela Brevo",
-                email_id,
+                "Falha no envio pelo SMSGate",
+                sms_id,
             ))
             con.commit()
-            print(f"EMAIL {email_id}: falhou - permanece pendente")
+            print(f"SMS {sms_id}: falhou - permanece pendente")
 
     con.close()
 

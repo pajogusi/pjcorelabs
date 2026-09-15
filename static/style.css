@@ -1242,3 +1242,33 @@ body {
     opacity: .4;
     cursor: not-allowed;
 }
+
+/* =========================================================
+   FIX MOBILE — grelha semanal mantém-se durante scroll lateral
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    .agenda-semanal {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .agenda-cabecalho,
+    .agenda-corpo {
+        width: 720px;
+        min-width: 720px;
+    }
+
+    .agenda-cabecalho,
+    .linha-agenda {
+        grid-template-columns: 48px repeat(7, 96px);
+    }
+
+    .linha-agenda {
+        width: 720px;
+        min-width: 720px;
+    }
+}
+

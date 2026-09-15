@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Novo cliente — Blessed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='clientes.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='screensaver.css') }}">
+</head>
+
+<body>
+<div class="app app-semana">
+    <div class="estrutura-semana">
+
+        <aside class="lateral-marca">
+            <div class="marca marca-lateral">
+                <img src="{{ url_for('static', filename='blessed-logo.png') }}"
+                     alt="Barbearia Blessed"
+                     class="logo-blessed">
+            </div>
+
+            <nav class="menu-principal">
+                <a href="/semana" class="menu-item">
+                    <span class="menu-icone">▣</span><span>Agenda</span>
+                </a>
+                <a href="/clientes" class="menu-item ativo">
+                    <span class="menu-icone">♙</span><span>Clientes</span>
+                </a>
+                <a href="/servicos" class="menu-item">
+                    <span class="menu-icone">✂</span><span>Serviços</span>
+                </a>
+                <a href="/produtos" class="menu-item">
+                    <span class="menu-icone">▤</span><span>Produtos</span>
+                </a>
+                <button class="menu-item" type="button">
+                    <span class="menu-icone">✉</span><span>Comunicações</span>
+                </button>
+                <a href="/definicoes" class="menu-item">
+                    <span class="menu-icone">⚙</span><span>Definições</span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main-semana clientes-main">
+
+            <section class="clientes-topo">
+                <div>
+                    <h1>Novo cliente</h1>
+                    <p>Criar ficha sem marcação</p>
+                </div>
+
+                <a class="botao-voltar-agenda" href="/clientes">
+                    Cancelar
+                </a>
+            </section>
+
+            {% if erro %}
+            <div class="alerta-falta-cliente">{{ erro }}</div>
+            {% endif %}
+
+            <form method="post"
+                  action="/clientes/novo"
+                  class="form-novo-cliente">
+
+                <label>
+                    Nome *
+                    <input type="text"
+                           name="nome"
+                           value="{{ dados.get('nome', '') if dados else '' }}"
+                           required
+                           autocomplete="name">
+                </label>
+
+                <label>
+                    Telefone *
+                    <input type="tel"
+                           name="telefone"
+                           value="{{ dados.get('telefone', '') if dados else '' }}"
+                           required
+                           autocomplete="tel">
+                </label>
+
+                <label>
+                    Email
+                    <input type="email"
+                           name="email"
+                           value="{{ dados.get('email', '') if dados else '' }}"
+                           autocomplete="email">
+                </label>
+
+                <label>
+                    Data de nascimento
+                    <input type="text"
+                           id="dataNascimentoVisivel"
+                           placeholder="DD/MM/AAAA"
+                           inputmode="numeric"
+                           maxlength="10"
+                           autocomplete="bday">
+                    <input type="hidden"
+                           id="dataNascimentoIso"
+                           name="data_nascimento"
+                           value="{{ dados.get('data_nascimento', '') if dados else '' }}">
+                </label>
+
+                <div class="acoes-novo-cliente">
+                    <a href="/clientes">Cancelar</a>
+                    <button type="submit">Guardar cliente</button>
+                </div>
+
+            </form>
+
+        </main>
+    </div>
+</div>
+
+<script>
+(function () {
+    const visivel = document.getElementById('dataNascimentoVisivel');
+    const iso = document.getElementById('dataNascimentoIso');
+    const form = document.querySelector('.form-novo-cliente');
+
+    /* Se o formulário voltar após um erro, repõe a data em DD/MM/AAAA. */
+    if (iso.value) {
+        const partes = iso.value.split('-');
+        if (partes.length === 3) {
+            visivel.value = `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+    }
+
+    /* Facilita a escrita: 13091970 -> 13/09/1970 */
+    visivel.addEventListener('input', function () {
+        let numeros = this.value.replace(/\D/g, '').slice(0, 8);
+
+        if (numeros.length > 4) {
+            this.value =
+                numeros.slice(0, 2) + '/' +
+                numeros.slice(2, 4) + '/' +
+                numeros.slice(4);
+        } else if (numeros.length > 2) {
+            this.value =
+                numeros.slice(0, 2) + '/' +
+                numeros.slice(2);
+        } else {
+            this.value = numeros;
+        }
+    });
+
+    form.addEventListener('submit', function (e) {
+        const valor = visivel.value.trim();
+
+        if (!valor) {
+            iso.value = '';
+            return;
+        }
+
+        const m = valor.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+        if (!m) {
+            e.preventDefault();
+            alert('Introduz a data no formato DD/MM/AAAA.');
+            visivel.focus();
+            return;
+        }
+
+        const dia = Number(m[1]);
+        const mes = Number(m[2]);
+        const ano = Number(m[3]);
+        const data = new Date(ano, mes - 1, dia);
+
+        if (
+            data.getFullYear() !== ano ||
+            data.getMonth() !== mes - 1 ||
+            data.getDate() !== dia
+        ) {
+            e.preventDefault();
+            alert('A data de nascimento não é válida.');
+            visivel.focus();
+            return;
+        }
+
+        iso.value =
+            String(ano).padStart(4, '0') + '-' +
+            String(mes).padStart(2, '0') + '-' +
+            String(dia).padStart(2, '0');
+    });
+})();
+</script>
+
+<script>
+(function () {
+    const visivel = document.getElementById('dataNascimentoVisivel');
+    const iso = document.getElementById('dataNascimentoIso');
+    const form = document.querySelector('.form-novo-cliente');
+
+    /* Se o formulário voltar após um erro, repõe a data em DD/MM/AAAA. */
+    if (iso.value) {
+        const partes = iso.value.split('-');
+        if (partes.length === 3) {
+            visivel.value = `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+    }
+
+    /* Facilita a escrita: 13091970 -> 13/09/1970 */
+    visivel.addEventListener('input', function () {
+        let numeros = this.value.replace(/\D/g, '').slice(0, 8);
+
+        if (numeros.length > 4) {
+            this.value =
+                numeros.slice(0, 2) + '/' +
+                numeros.slice(2, 4) + '/' +
+                numeros.slice(4);
+        } else if (numeros.length > 2) {
+            this.value =
+                numeros.slice(0, 2) + '/' +
+                numeros.slice(2);
+        } else {
+            this.value = numeros;
+        }
+    });
+
+    form.addEventListener('submit', function (e) {
+        const valor = visivel.value.trim();
+
+        if (!valor) {
+            iso.value = '';
+            return;
+        }
+
+        const m = valor.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+        if (!m) {
+            e.preventDefault();
+            alert('Introduz a data no formato DD/MM/AAAA.');
+            visivel.focus();
+            return;
+        }
+
+        const dia = Number(m[1]);
+        const mes = Number(m[2]);
+        const ano = Number(m[3]);
+        const data = new Date(ano, mes - 1, dia);
+
+        if (
+            data.getFullYear() !== ano ||
+            data.getMonth() !== mes - 1 ||
+            data.getDate() !== dia
+        ) {
+            e.preventDefault();
+            alert('A data de nascimento não é válida.');
+            visivel.focus();
+            return;
+        }
+
+        iso.value =
+            String(ano).padStart(4, '0') + '-' +
+            String(mes).padStart(2, '0') + '-' +
+            String(dia).padStart(2, '0');
+    });
+})();
+</script>
+
+<script src="{{ url_for('static', filename='screensaver.js') }}"></script>
+</body>
+</html>

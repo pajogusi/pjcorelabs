@@ -28,39 +28,47 @@
         <main class="main-semana clientes-main">
             <section class="clientes-topo">
                 <div>
-                    <h1>{% if top10 %}Top 10 clientes{% elif apenas_inativos %}Clientes inativos{% else %}Clientes{% endif %}</h1>
-                    <p>{{ clientes|length }} {% if clientes|length == 1 %}cliente{% else %}clientes{% endif %}{% if pesquisa %} encontrados{% endif %}</p>
+                    <h1>{% if top_limite %}Top {{ top_limite }} clientes{% elif apenas_inativos %}Clientes inativos{% else %}Clientes{% endif %}</h1>
+                    <p>
+                        {{ clientes|length }} {% if clientes|length == 1 %}cliente{% else %}clientes{% endif %}{% if pesquisa %} encontrados{% endif %}
+                        · {{ total_clientes }} registado{% if total_clientes != 1 %}s{% endif %}
+                    </p>
                 </div>
-                <a class="botao-voltar-agenda" href="/semana">Voltar à agenda</a>
+                <div class="acoes-topo-clientes">
+                    <a class="botao-novo-cliente" href="/clientes/novo">+ Novo cliente</a>
+                    <a class="botao-voltar-agenda" href="/semana">Voltar à agenda</a>
+                </div>
             </section>
 
             <div class="filtros-clientes">
-                <a href="/clientes" class="filtro-cliente {% if not apenas_inativos and not top10 %}ativo{% endif %}">Todos</a>
+                <a href="/clientes" class="filtro-cliente {% if not apenas_inativos and not top_limite %}ativo{% endif %}">Todos</a>
                 <a href="/clientes?inativos=1" class="filtro-cliente filtro-alerta {% if apenas_inativos %}ativo{% endif %}">Inativos +2 meses{% if total_inativos %}<span>{{ total_inativos }}</span>{% endif %}</a>
-                <a href="/clientes?top=10" class="filtro-cliente {% if top10 %}ativo{% endif %}">★ Top 10</a>
+                <a href="/clientes?top=10" class="filtro-cliente {% if top_limite == 10 %}ativo{% endif %}">★ Top 10</a>
+                <a href="/clientes?top=50" class="filtro-cliente {% if top_limite == 50 %}ativo{% endif %}">★ Top 50</a>
+                <a href="/clientes?top=100" class="filtro-cliente {% if top_limite == 100 %}ativo{% endif %}">★ Top 100</a>
             </div>
 
             <form class="pesquisa-clientes" method="get" action="/clientes">
                 {% if apenas_inativos %}<input type="hidden" name="inativos" value="1">{% endif %}
-                {% if top10 %}<input type="hidden" name="top" value="10">{% endif %}
+                {% if top_limite %}<input type="hidden" name="top" value="{{ top_limite }}">{% endif %}
                 <input type="search" name="q" value="{{ pesquisa }}" placeholder="Pesquisar por nome, telefone ou email" autocomplete="off">
                 <button type="submit">Pesquisar</button>
-                {% if pesquisa %}<a href="/clientes{% if apenas_inativos %}?inativos=1{% elif top10 %}?top=10{% endif %}">Limpar</a>{% endif %}
+                {% if pesquisa %}<a href="/clientes{% if apenas_inativos %}?inativos=1{% elif top_limite %}?top={{ top_limite }}{% endif %}">Limpar</a>{% endif %}
             </form>
 
             <section class="lista-clientes">
                 {% if clientes %}
                     {% for cliente in clientes %}
                     <a class="cliente-card" href="/clientes/{{ cliente.id }}">
-                        {% if top10 %}<span class="top-posicao">#{{ loop.index }}</span>{% endif %}
+                        {% if top_limite %}<span class="top-posicao">#{{ loop.index }}</span>{% endif %}
                         <div class="cliente-identidade">
-                            <strong>{{ cliente.nome }}</strong>
+                            <strong class="{% if cliente.id in clientes_falta_ativa %}cliente-nome-falta{% endif %}">{{ cliente.nome }}</strong>
                             <span>{{ cliente.telefone or 'Sem telefone' }}</span>
                             {% if cliente.email %}<small>{{ cliente.email }}</small>{% endif %}
                         </div>
                         <div class="cliente-resumo">
                             <span>
-                                {% if top10 %}
+                                {% if top_limite %}
                                     {{ cliente.total_concluidas }} {% if cliente.total_concluidas == 1 %}visita concluída{% else %}visitas concluídas{% endif %}
                                 {% else %}
                                     {{ cliente.total_marcacoes }} {% if cliente.total_marcacoes == 1 %}marcação{% else %}marcações{% endif %}
