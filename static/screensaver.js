@@ -93,3 +93,61 @@
 
     reiniciar();
 })();
+
+/*
+ * Ajuda comum dos campos de data de nascimento.
+ * Aceita escrita compacta (20091970) e com separadores (- / .),
+ * apresentando sempre DD/MM/AAAA antes das validações já existentes.
+ */
+(function () {
+    "use strict";
+
+    const SELETORES = "#dataNascimentoVisivel, #nascimentoCliente";
+
+    function formatarDataNascimento(valor) {
+        const texto = String(valor || "").trim();
+        if (!texto) return "";
+
+        const iso = texto.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (iso) {
+            return `${iso[3]}/${iso[2]}/${iso[1]}`;
+        }
+
+        const numeros = texto.replace(/\D/g, "").slice(0, 8);
+        if (numeros.length <= 2) return numeros;
+        if (numeros.length <= 4) {
+            return numeros.slice(0, 2) + "/" + numeros.slice(2);
+        }
+        return (
+            numeros.slice(0, 2) + "/" +
+            numeros.slice(2, 4) + "/" +
+            numeros.slice(4)
+        );
+    }
+
+    document.addEventListener("input", function (evento) {
+        const campo = evento.target.closest && evento.target.closest(SELETORES);
+        if (!campo) return;
+
+        const formatado = formatarDataNascimento(campo.value);
+        if (campo.value !== formatado) {
+            campo.value = formatado;
+        }
+        campo.setCustomValidity("");
+    });
+
+    document.addEventListener("paste", function (evento) {
+        const campo = evento.target.closest && evento.target.closest(SELETORES);
+        if (!campo || !evento.clipboardData) return;
+
+        const texto = evento.clipboardData.getData("text");
+        const formatado = formatarDataNascimento(texto);
+
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(formatado)) {
+            evento.preventDefault();
+            campo.value = formatado;
+            campo.setCustomValidity("");
+            campo.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+    }, true);
+})();
