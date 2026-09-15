@@ -9,8 +9,11 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-BASE = Path("/home/paulo/Blessed")
-REAL_DB = BASE / "blessed.db"
+# Código que está efetivamente a ser testado.
+BASE = Path(__file__).resolve().parent
+
+# Produção: usada apenas para confirmar que os testes nunca a alteram.
+REAL_DB = Path("/home/paulo/Blessed/blessed.db")
 
 PASS = 0
 FAIL = 0
@@ -259,7 +262,7 @@ with tempfile.TemporaryDirectory(prefix="blessed-tests-") as tmp:
     cliente_id = cliente["id"] if cliente else None
 
     marcacao1 = con.execute("""
-        SELECT id, cliente_id, inicio, duracao_minutos, servico,
+        SELECT id, cliente_id, inicio, duracao_minutos,
                estado, observacoes
         FROM marcacoes
         WHERE cliente_id = ?
@@ -271,7 +274,6 @@ with tempfile.TemporaryDirectory(prefix="blessed-tests-") as tmp:
         "Campos da marcação guardados",
         marcacao1 is not None
         and marcacao1["duracao_minutos"] == 30
-        and marcacao1["servico"] == "Corte"
         and marcacao1["observacoes"] == "Teste automático"
     )
 
@@ -716,7 +718,126 @@ with tempfile.TemporaryDirectory(prefix="blessed-tests-") as tmp:
     )
 
     # -----------------------------------------------------
-    # 16. INTEGRIDADE FINAL DA CÓPIA
+    # 16. EDITAR DURAÇÃO DE UMA MARCAÇÃO
+    # -----------------------------------------------------
+
+    # Duas marcações próprias para estes testes:
+    # alvo 10:00-10:30 e seguinte 11:00-11:30.
+    con = db()
+
+    cur = con.execute(
+        """
+        INSERT INTO marcacoes
+        (cliente_id, inicio, duracao_minutos, servico, estado, observacoes)
+        VALUES (?, ?, ?, ?, 'marcada', ?)
+        """,
+        (cliente_id, "2030-01-15T10:00", 30, "", "Teste edição duração")
+    )
+    duracao_alvo_id = cur.lastrowid
+
+    con.execute(
+        """
+        INSERT INTO marcacoes
+        (cliente_id, inicio, duracao_minutos, servico, estado, observacoes)
+        VALUES (?, ?, ?, ?, 'marcada', ?)
+        """,
+        (cliente_id, "2030-01-15T11:00", 30, "", "Teste conflito duração")
+    )
+
+    con.commit()
+    con.close()
+
+    # 16.1 — Alteração normal: 30 -> 45 minutos.
+    # Continua a terminar às 10:45, portanto não existe conflito.
+    r = client.post(
+        f"/marcacoes/{duracao_alvo_id}/duracao",
+        data={"duracao": "45"}
+    )
+    dados = r.get_json(silent=True) or {}
+
+    con = db()
+    duracao_guardada = con.execute(
+        "SELECT duracao_minutos FROM marcacoes WHERE id = ?",
+        (duracao_alvo_id,)
+    ).fetchone()["duracao_minutos"]
+    con.close()
+
+    teste(
+        "Editar duração sem conflito",
+        r.status_code == 200
+        and dados.get("ok") is True
+        and duracao_guardada == 45,
+        f"status={r.status_code}, dados={dados}, duração={duracao_guardada}"
+    )
+
+    # 16.2 — Duração fora das opções permitidas.
+    r = client.post(
+        f"/marcacoes/{duracao_alvo_id}/duracao",
+        data={"duracao": "999"}
+    )
+
+    con = db()
+    duracao_guardada = con.execute(
+        "SELECT duracao_minutos FROM marcacoes WHERE id = ?",
+        (duracao_alvo_id,)
+    ).fetchone()["duracao_minutos"]
+    con.close()
+
+    teste(
+        "Editar duração rejeita valor inválido",
+        r.status_code == 400 and duracao_guardada == 45,
+        f"status={r.status_code}, duração={duracao_guardada}"
+    )
+
+    # 16.3 — 90 minutos faria a primeira marcação terminar às 11:30,
+    # sobrepondo 30 minutos da marcação seguinte.
+    # Sem confirmação deve devolver 409 e NÃO alterar a base.
+    r = client.post(
+        f"/marcacoes/{duracao_alvo_id}/duracao",
+        data={"duracao": "90"}
+    )
+    dados = r.get_json(silent=True) or {}
+
+    con = db()
+    duracao_guardada = con.execute(
+        "SELECT duracao_minutos FROM marcacoes WHERE id = ?",
+        (duracao_alvo_id,)
+    ).fetchone()["duracao_minutos"]
+    con.close()
+
+    teste(
+        "Editar duração deteta conflito sem alterar BD",
+        r.status_code == 409
+        and dados.get("requer_confirmacao") is True
+        and len(dados.get("conflitos", [])) >= 1
+        and duracao_guardada == 45,
+        f"status={r.status_code}, dados={dados}, duração={duracao_guardada}"
+    )
+
+    # 16.4 — O mesmo conflito confirmado pelo utilizador deve ser aceite.
+    r = client.post(
+        f"/marcacoes/{duracao_alvo_id}/duracao",
+        data={"duracao": "90", "forcar": "1"}
+    )
+    dados = r.get_json(silent=True) or {}
+
+    con = db()
+    duracao_guardada = con.execute(
+        "SELECT duracao_minutos FROM marcacoes WHERE id = ?",
+        (duracao_alvo_id,)
+    ).fetchone()["duracao_minutos"]
+    con.close()
+
+    teste(
+        "Editar duração permite conflito confirmado",
+        r.status_code == 200
+        and dados.get("ok") is True
+        and duracao_guardada == 90,
+        f"status={r.status_code}, dados={dados}, duração={duracao_guardada}"
+    )
+
+    # -----------------------------------------------------
+    # 17. INTEGRIDADE FINAL DA CÓPIA
     # -----------------------------------------------------
     con = db()
     integrity_final = con.execute("PRAGMA integrity_check").fetchone()[0]

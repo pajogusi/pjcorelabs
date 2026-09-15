@@ -109,3 +109,154 @@
 .acoes-historico-cliente .botao-marcar {
     min-width: 120px;
 }
+
+/* Edição rápida da duração de uma marcação */
+.editar-duracao-marcacao {
+    margin: 18px 0;
+    padding: 15px;
+    border: 1px solid #383838;
+    border-radius: 10px;
+    background: #171717;
+}
+
+.editar-duracao-marcacao h3 {
+    margin: 0 0 12px;
+}
+
+.escolha-duracao {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 7px;
+}
+
+.botao-duracao {
+    min-height: 48px;
+    border: 1px solid #4b5563;
+    border-radius: 9px;
+    background: #252525;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.botao-duracao.ativo {
+    background: #315b82;
+    border-color: #7fb3e3;
+    outline: 2px solid #557da4;
+}
+
+#avisoDuracaoMarcacao {
+    margin-top: 10px;
+    line-height: 1.4;
+}
+
+@media (max-width: 620px) {
+    .escolha-duracao {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Confirmação de sobreposição dentro do modal */
+.aviso-sobreposicao {
+    margin-top: 12px;
+    padding: 14px;
+    border: 1px solid #c89b16;
+    border-radius: 10px;
+    background: rgba(200, 155, 22, 0.14);
+}
+
+.aviso-sobreposicao strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 1.05rem;
+}
+
+.aviso-sobreposicao p {
+    margin: 7px 0;
+}
+
+.acoes-sobreposicao {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    margin-top: 12px;
+}
+
+.botao-cancelar-sobreposicao,
+.botao-confirmar-sobreposicao {
+    min-height: 48px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.botao-cancelar-sobreposicao {
+    border: 1px solid #666;
+    background: #292929;
+    color: #fff;
+}
+
+.botao-confirmar-sobreposicao {
+    border: 1px solid #d6a91d;
+    background: #765d0b;
+    color: #fff;
+}
+
+@media (max-width: 620px) {
+    .acoes-sobreposicao {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Faixa visual do período em que duas marcações se sobrepõem */
+.marcacao-posicionada {
+    overflow: hidden;
+}
+
+.faixa-sobreposicao {
+    position: absolute;
+    z-index: 1;
+    left: 0;
+    right: 0;
+    top: calc((var(--conflito-inicio) / var(--marcacao-duracao)) * 100%);
+    height: calc((var(--conflito-duracao) / var(--marcacao-duracao)) * 100%);
+    min-height: 4px;
+    background:
+        repeating-linear-gradient(
+            135deg,
+            rgba(255, 204, 0, .72) 0,
+            rgba(255, 204, 0, .72) 8px,
+            rgba(210, 157, 0, .82) 8px,
+            rgba(210, 157, 0, .82) 16px
+        );
+    border-top: 1px solid rgba(255, 224, 90, .95);
+    border-bottom: 1px solid rgba(255, 224, 90, .95);
+    pointer-events: none;
+}
+
+.marcacao-posicionada > strong {
+    position: relative;
+    z-index: 2;
+}
+
+/* Identificação da faixa de conflito */
+.faixa-sobreposicao {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.texto-conflito {
+    position: relative;
+    z-index: 2;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(35, 27, 0, .72);
+    color: #fff4b0 !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    font-weight: 800;
+    letter-spacing: .3px;
+    white-space: nowrap;
+    pointer-events: none;
+}

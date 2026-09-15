@@ -73,8 +73,14 @@
                             <div class="marcacao-grelha marcacao-posicionada estado-{{ m.estado }}"
                                  style="--deslocamento: {{ m.deslocamento }}; --duracao: {{ m.duracao }};"
                                  data-marcacao-id="{{ m.id }}" data-nome="{{ m.nome }}"
-                                 data-hora-real="{{ m.hora }}" data-data-real="{{ m.inicio[:10] }}" data-estado="{{ m.estado }}"
-                                 title="{{ m.hora }} · {{ m.nome }} · {{ m.estado }}">
+                                 data-hora-real="{{ m.hora }}" data-data-real="{{ m.inicio[:10] }}"
+                                 data-estado="{{ m.estado }}" data-duracao="{{ m.duracao }}"
+                                 title="{{ m.hora }}–{{ m.hora_fim }} · {{ m.nome }} · {{ m.estado }} · {{ m.duracao }} min{% if m.sobreposicoes %} · ⚠ Sobreposição{% endif %}">
+                                {% for faixa in m.sobreposicoes %}
+                                <span class="faixa-sobreposicao"
+                                      style="--conflito-inicio: {{ faixa.inicio }}; --conflito-duracao: {{ faixa.duracao }}; --marcacao-duracao: {{ m.duracao }};"
+                                      aria-hidden="true"></span>
+                                {% endfor %}
                                 <strong>{{ m.hora }} · {{ m.nome }}</strong>
                             </div>
                             {% endif %}{% endfor %}
@@ -142,6 +148,29 @@
     <section class="form-marcacao modal-estado-conteudo" role="dialog" aria-modal="true" aria-labelledby="tituloEstadoMarcacao">
         <div class="form-marcacao-topo"><div><h2 id="tituloEstadoMarcacao">Marcação</h2><p id="resumoEstadoMarcacao" class="resumo-estado"></p></div><button type="button" class="fechar-modal" data-fechar-estado aria-label="Fechar">×</button></div>
         <p class="estado-atual">Estado atual: <strong id="estadoAtualMarcacao"></strong></p>
+
+        <div class="editar-duracao-marcacao">
+            <h3>Editar duração</h3>
+
+            <form id="formDuracaoMarcacao" method="post">
+                <input type="hidden" name="duracao" id="duracaoMarcacao">
+
+                <div class="escolha-duracao" aria-label="Escolher duração">
+                    <button type="button" class="botao-duracao" data-duracao="15">15 min</button>
+                    <button type="button" class="botao-duracao" data-duracao="30">30 min</button>
+                    <button type="button" class="botao-duracao" data-duracao="45">45 min</button>
+                    <button type="button" class="botao-duracao" data-duracao="60">60 min</button>
+                    <button type="button" class="botao-duracao" data-duracao="90">90 min</button>
+                </div>
+
+                <button type="submit" class="botao-marcar">
+                    Guardar duração
+                </button>
+            </form>
+
+            <div id="avisoDuracaoMarcacao"></div>
+        </div>
+
         <form id="formEstadoMarcacao" method="post">
             <div class="opcoes-estado">
                 <button type="submit" name="estado" value="concluída" class="botao-estado">Concretizada</button>
@@ -252,7 +281,108 @@ function atualizarMarcacao(){formatarDataMarcacao();verificarDisponibilidade();}
 function mudarDiaMarcacao(diferenca){const p=campoData.value.split('-'),d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));d.setDate(d.getDate()+diferenca);campoData.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');atualizarMarcacao();}
 function mudarHoraMarcacao(minutos){const p=campoData.value.split('-'),h=campoHora.value.split(':'),d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]),Number(h[0]),Number(h[1]));d.setMinutes(d.getMinutes()+minutos);campoData.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');campoHora.value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');atualizarMarcacao();}
 function limparFormularioCliente(){document.getElementById('formNovaMarcacao').reset();estadoCliente.textContent='';estadoCliente.className='estado-cliente';}
-document.querySelectorAll('.celula-agenda').forEach(function(celula){celula.addEventListener('click',function(evento){const marcacao=evento.target.closest('.marcacao-grelha');if(marcacao){evento.stopPropagation();document.getElementById('resumoEstadoMarcacao').textContent=dataPt(marcacao.dataset.dataReal)+' · '+marcacao.dataset.horaReal+' · '+marcacao.dataset.nome;document.getElementById('estadoAtualMarcacao').textContent=marcacao.dataset.estado;document.getElementById('formEstadoMarcacao').action='/marcacoes/'+marcacao.dataset.marcacaoId+'/estado';modalEstado.hidden=false;return;}limparFormularioCliente();campoData.value=celula.dataset.data;campoHora.value=celula.dataset.hora;atualizarMarcacao();modal.hidden=false;setTimeout(function(){telefoneCliente.focus();},50);});});
+document.querySelectorAll('.celula-agenda').forEach(function(celula){celula.addEventListener('click',function(evento){const marcacao=evento.target.closest('.marcacao-grelha');if(marcacao){evento.stopPropagation();document.getElementById('resumoEstadoMarcacao').textContent=dataPt(marcacao.dataset.dataReal)+' · '+marcacao.dataset.horaReal+' · '+marcacao.dataset.nome;document.getElementById('estadoAtualMarcacao').textContent=marcacao.dataset.estado;document.getElementById('duracaoMarcacao').value=marcacao.dataset.duracao;document.querySelectorAll('.botao-duracao').forEach(function(b){b.classList.toggle('ativo',b.dataset.duracao===marcacao.dataset.duracao);});document.getElementById('avisoDuracaoMarcacao').textContent='';document.getElementById('formDuracaoMarcacao').action='/marcacoes/'+marcacao.dataset.marcacaoId+'/duracao';document.getElementById('formEstadoMarcacao').action='/marcacoes/'+marcacao.dataset.marcacaoId+'/estado';modalEstado.hidden=false;return;}limparFormularioCliente();campoData.value=celula.dataset.data;campoHora.value=celula.dataset.hora;atualizarMarcacao();modal.hidden=false;setTimeout(function(){telefoneCliente.focus();},50);});});
+document.querySelectorAll('.botao-duracao').forEach(function(botao){
+    botao.addEventListener('click',function(){
+        document.getElementById('duracaoMarcacao').value=this.dataset.duracao;
+        document.querySelectorAll('.botao-duracao').forEach(function(b){
+            b.classList.toggle('ativo',b===botao);
+        });
+        document.getElementById('avisoDuracaoMarcacao').textContent='';
+    });
+});
+
+document.getElementById('formDuracaoMarcacao').addEventListener('submit',async function(e){
+    e.preventDefault();
+
+    const form=this;
+    const aviso=document.getElementById('avisoDuracaoMarcacao');
+    const duracao=document.getElementById('duracaoMarcacao').value;
+
+    if(!duracao){
+        aviso.textContent='Escolhe uma duração.';
+        return;
+    }
+
+    async function guardar(forcar){
+        aviso.innerHTML='<div class="duracao-verificar">A verificar...</div>';
+
+        const dados=new URLSearchParams();
+        dados.set('duracao',duracao);
+        if(forcar) dados.set('forcar','1');
+
+        try{
+            const resposta=await fetch(form.action,{
+                method:'POST',
+                headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                body:dados.toString()
+            });
+
+            const resultado=await resposta.json();
+
+            if(resposta.ok && resultado.ok){
+                window.location.reload();
+                return;
+            }
+
+            if(resposta.status===409 && resultado.requer_confirmacao){
+                const c=resultado.conflitos[0];
+
+                aviso.innerHTML='';
+
+                const caixa=document.createElement('div');
+                caixa.className='aviso-sobreposicao';
+
+                const titulo=document.createElement('strong');
+                titulo.textContent='⚠ Esta alteração cria uma sobreposição';
+
+                const detalhe=document.createElement('p');
+                detalhe.textContent=
+                    'Sobrepõe '+c.sobreposicao_minutos+
+                    ' minutos com '+c.nome+
+                    ' ('+c.inicio+'–'+c.fim+').';
+
+                const pergunta=document.createElement('p');
+                pergunta.textContent='Queres guardar mesmo assim?';
+
+                const botoes=document.createElement('div');
+                botoes.className='acoes-sobreposicao';
+
+                const cancelar=document.createElement('button');
+                cancelar.type='button';
+                cancelar.className='botao-cancelar-sobreposicao';
+                cancelar.textContent='Cancelar alteração';
+
+                const confirmar=document.createElement('button');
+                confirmar.type='button';
+                confirmar.className='botao-confirmar-sobreposicao';
+                confirmar.textContent='Guardar mesmo assim';
+
+                cancelar.addEventListener('click',function(){
+                    aviso.innerHTML='';
+                });
+
+                confirmar.addEventListener('click',async function(){
+                    cancelar.disabled=true;
+                    confirmar.disabled=true;
+                    await guardar(true);
+                });
+
+                botoes.append(cancelar,confirmar);
+                caixa.append(titulo,detalhe,pergunta,botoes);
+                aviso.appendChild(caixa);
+                return;
+            }
+
+            aviso.textContent=resultado.erro || 'Não foi possível alterar a duração.';
+        }catch(err){
+            aviso.textContent='Erro ao comunicar com o servidor.';
+        }
+    }
+
+    await guardar(false);
+});
+
 telefoneCliente.addEventListener('input',function(){clearTimeout(temporizadorTelefone);temporizadorTelefone=setTimeout(procurarClientePorTelefone,350);});
 document.getElementById('diaAnterior').addEventListener('click',function(){mudarDiaMarcacao(-1);});document.getElementById('diaSeguinte').addEventListener('click',function(){mudarDiaMarcacao(1);});document.getElementById('horaAnterior').addEventListener('click',function(){mudarHoraMarcacao(-15);});document.getElementById('horaSeguinte').addEventListener('click',function(){mudarHoraMarcacao(15);});document.querySelector('#formNovaMarcacao [name="duracao"]').addEventListener('change',atualizarMarcacao);document.querySelectorAll('[data-fechar-modal]').forEach(function(b){b.addEventListener('click',function(){modal.hidden=true;});});document.querySelectorAll('[data-fechar-estado]').forEach(function(b){b.addEventListener('click',function(){modalEstado.hidden=true;});});document.addEventListener('keydown',function(e){if(e.key==='Escape'){modal.hidden=true;modalEstado.hidden=true;}});
 </script>

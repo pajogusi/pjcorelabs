@@ -128,6 +128,29 @@ def normalizar_telefone(numero):
     return "".join(c for c in numero if c.isdigit() or c == "+")
 
 
+def normalizar_data_nascimento(valor):
+    """Aceita formatos de data existentes e devolve sempre uma data ISO."""
+    valor = (valor or "").strip()
+    if not valor:
+        return None
+
+    formatos = (
+        "%Y-%m-%d",
+        "%Y%m%d",
+        "%d-%m-%Y",
+        "%d/%m/%Y",
+        "%d.%m.%Y",
+    )
+
+    for formato in formatos:
+        try:
+            return datetime.strptime(valor, formato).date().isoformat()
+        except ValueError:
+            continue
+
+    raise ValueError("Data de nascimento inválida")
+
+
 @app.template_filter("data_pt")
 def data_pt(valor):
     """Apresenta datas ISO em DD/MM/AAAA sem alterar o valor guardado na base."""
@@ -431,6 +454,7 @@ def semana():
                 "id": m["id"],
                 "inicio": m["inicio"],
                 "hora": inicio_m.strftime("%H:%M"),
+                "hora_fim": (inicio_m + timedelta(minutes=m["duracao_minutos"])).strftime("%H:%M"),
                 "hora_base": hora_base.strftime("%H:%M"),
                 "deslocamento": deslocamento,
                 "duracao": m["duracao_minutos"],
@@ -438,6 +462,45 @@ def semana():
                 "estado": m["estado"],
                 "nome": m["nome"]
             })
+        # Calcula, para cada marcação, os intervalos em que existe
+        # sobreposição com outra marcação do mesmo dia.
+        for atual in marcacoes_dia:
+            atual_inicio = datetime.fromisoformat(atual["inicio"])
+            atual_fim = atual_inicio + timedelta(minutes=atual["duracao"])
+            faixas = []
+
+            for outra in marcacoes_dia:
+                if outra["id"] == atual["id"]:
+                    continue
+
+                # Marcações canceladas não contam como conflito operacional.
+                if atual["estado"] == "cancelada" or outra["estado"] == "cancelada":
+                    continue
+
+                outra_inicio = datetime.fromisoformat(outra["inicio"])
+                outra_fim = outra_inicio + timedelta(minutes=outra["duracao"])
+
+                conflito_inicio = max(atual_inicio, outra_inicio)
+                conflito_fim = min(atual_fim, outra_fim)
+
+                if conflito_inicio < conflito_fim:
+                    inicio_minutos = int(
+                        (conflito_inicio - atual_inicio).total_seconds() // 60
+                    )
+                    duracao_minutos = int(
+                        (conflito_fim - conflito_inicio).total_seconds() // 60
+                    )
+
+                    faixa = {
+                        "inicio": inicio_minutos,
+                        "duracao": duracao_minutos,
+                    }
+
+                    if faixa not in faixas:
+                        faixas.append(faixa)
+
+            atual["sobreposicoes"] = faixas
+
         dias.append({"data": data_dia.isoformat(), "nome": nomes_dias[numero], "marcacoes": marcacoes_dia})
 
     horas_grelha = []
@@ -458,7 +521,6 @@ def semana():
         clientes_inativos=clientes_inativos,
         meses_rapidos=meses_rapidos,
     )
-
 
 @app.route("/servicos")
 def servicos():
@@ -614,7 +676,17 @@ def novo_cliente():
     nome = request.form.get("nome", "").strip()
     telefone = request.form.get("telefone", "").strip()
     email = request.form.get("email", "").strip()
-    data_nascimento = request.form.get("data_nascimento", "").strip() or None
+
+    try:
+        data_nascimento = normalizar_data_nascimento(
+            request.form.get("data_nascimento", "")
+        )
+    except ValueError:
+        return render_template(
+            "cliente_novo.html",
+            erro="A data de nascimento não é válida.",
+            dados=request.form,
+        ), 400
 
     if not nome or not telefone:
         return render_template(
@@ -670,7 +742,6 @@ def novo_cliente():
 
     con.close()
     return redirect(f"/clientes/{cliente_id}")
-
 
 @app.route("/clientes/<int:cliente_id>")
 def cliente_detalhe(cliente_id):
@@ -814,7 +885,14 @@ def nova_marcacao():
     nome = request.form.get("nome", "").strip()
     telefone = request.form.get("telefone", "").strip()
     email = request.form.get("email", "").strip()
-    data_nascimento = request.form.get("data_nascimento", "").strip() or None
+
+    try:
+        data_nascimento = normalizar_data_nascimento(
+            request.form.get("data_nascimento", "")
+        )
+    except ValueError:
+        return "Data de nascimento inválida", 400
+
     observacoes = request.form.get("observacoes", "").strip() or None
     inicio = request.form.get("inicio", "").strip()
     servico = ""
@@ -939,6 +1017,89 @@ def nova_marcacao():
 
     return redirect(url_for("semana", data=novo_inicio.date().isoformat()))
 
+@app.route("/marcacoes/<int:marcacao_id>/duracao", methods=["POST"])
+def alterar_duracao_marcacao(marcacao_id):
+    try:
+        duracao = int(request.form.get("duracao", 0))
+    except (ValueError, TypeError):
+        return {"ok": False, "erro": "Duração inválida"}, 400
+
+    if duracao not in (15, 30, 45, 60, 90):
+        return {"ok": False, "erro": "Duração inválida"}, 400
+
+    forcar = request.form.get("forcar", "") == "1"
+
+    con = get_db()
+    concretizar_marcacoes_vencidas(con)
+
+    marcacao = con.execute("""
+        SELECT m.id, m.inicio, m.duracao_minutos, m.estado
+        FROM marcacoes m
+        WHERE m.id = ?
+    """, (marcacao_id,)).fetchone()
+
+    if not marcacao:
+        con.close()
+        return {"ok": False, "erro": "Marcação não encontrada"}, 404
+
+    novo_inicio = datetime.fromisoformat(marcacao["inicio"])
+    novo_fim = novo_inicio + timedelta(minutes=duracao)
+
+    conflitos_db = con.execute("""
+        SELECT m.id, m.inicio, m.duracao_minutos, c.nome
+        FROM marcacoes m
+        JOIN clientes c ON c.id = m.cliente_id
+        WHERE substr(m.inicio, 1, 10) = ?
+          AND m.id != ?
+          AND m.estado != 'cancelada'
+        ORDER BY m.inicio
+    """, (novo_inicio.date().isoformat(), marcacao_id)).fetchall()
+
+    conflitos = []
+
+    for outra in conflitos_db:
+        outra_inicio = datetime.fromisoformat(outra["inicio"])
+        outra_fim = outra_inicio + timedelta(minutes=outra["duracao_minutos"])
+
+        if novo_inicio < outra_fim and novo_fim > outra_inicio:
+            sobreposicao_inicio = max(novo_inicio, outra_inicio)
+            sobreposicao_fim = min(novo_fim, outra_fim)
+            minutos = int(
+                (sobreposicao_fim - sobreposicao_inicio).total_seconds() // 60
+            )
+
+            conflitos.append({
+                "id": outra["id"],
+                "nome": outra["nome"],
+                "inicio": outra_inicio.strftime("%H:%M"),
+                "fim": outra_fim.strftime("%H:%M"),
+                "sobreposicao_minutos": minutos,
+            })
+
+    if conflitos and not forcar:
+        con.close()
+        return {
+            "ok": False,
+            "requer_confirmacao": True,
+            "duracao": duracao,
+            "conflitos": conflitos,
+        }, 409
+
+    con.execute("""
+        UPDATE marcacoes
+        SET duracao_minutos = ?,
+            atualizado_em = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (duracao, marcacao_id))
+
+    con.commit()
+    con.close()
+
+    return {
+        "ok": True,
+        "duracao": duracao,
+        "forcado": bool(conflitos and forcar),
+    }
 
 @app.route("/marcacoes/<int:marcacao_id>/estado", methods=["POST"])
 def alterar_estado_marcacao(marcacao_id):
