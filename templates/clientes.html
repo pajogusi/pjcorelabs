@@ -27,12 +27,17 @@
 
         <main class="main-semana clientes-main">
             <section class="clientes-topo">
-                <div>
-                    <h1>{% if top_limite %}Top {{ top_limite }} clientes{% elif apenas_inativos %}Clientes inativos{% else %}Clientes{% endif %}</h1>
-                    <p>
-                        {{ clientes|length }} {% if clientes|length == 1 %}cliente{% else %}clientes{% endif %}{% if pesquisa %} encontrados{% endif %}
-                        · {{ total_clientes }} registado{% if total_clientes != 1 %}s{% endif %}
-                    </p>
+                <div class="clientes-titulo-bloco">
+                    <div>
+                        <h1>{% if top_limite %}Top {{ top_limite }} clientes{% elif apenas_inativos %}Clientes inativos{% else %}Clientes{% endif %}</h1>
+                        <p>
+                            {{ clientes|length }} {% if clientes|length == 1 %}cliente{% else %}clientes{% endif %}{% if pesquisa %} encontrados{% endif %}
+                        </p>
+                    </div>
+                    <div class="contador-clientes" aria-label="Total de clientes registados">
+                        <strong>{{ total_clientes }}</strong>
+                        <span>{% if total_clientes == 1 %}cliente registado{% else %}clientes registados{% endif %}</span>
+                    </div>
                 </div>
                 <div class="acoes-topo-clientes">
                     <a class="botao-novo-cliente" href="/clientes/novo">+ Novo cliente</a>
