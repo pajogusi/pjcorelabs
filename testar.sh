@@ -1,4 +1,5 @@
 #!/bin/bash
 set -e
-cd /home/paulo/Blessed
-exec .venv/bin/python tests_blessed.py
+BASE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+cd "$BASE_DIR"
+exec "$BASE_DIR/.venv/bin/python" "$BASE_DIR/tests_blessed.py"
