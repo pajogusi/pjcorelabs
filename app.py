@@ -1,5 +1,9 @@
+import base64
+import csv
+import io
 import json
 import os
+import threading
 import sqlite3
 import urllib.error
 import urllib.request
@@ -12,9 +16,13 @@ app = Flask(__name__)
 
 DB = Path(__file__).with_name("blessed.db")
 
+LOG_EMAIL_DESTINO = "pajogusi.uk@gmail.com"
+LOG_LOTE_TAMANHO = 10
+LOG_LOCK = threading.Lock()
 
 
-def enviar_email_brevo(destinatario, assunto, texto):
+
+def enviar_email_brevo(destinatario, assunto, texto, anexo_nome=None, anexo_conteudo=None):
     """Envia email transacional pela Brevo. Devolve True/False sem interromper a aplicação."""
     destinatario = (destinatario or "").strip()
     if not destinatario:
@@ -38,6 +46,15 @@ def enviar_email_brevo(destinatario, assunto, texto):
         "subject": assunto,
         "textContent": texto,
     }
+
+    if anexo_nome and anexo_conteudo is not None:
+        if isinstance(anexo_conteudo, str):
+            anexo_conteudo = anexo_conteudo.encode("utf-8")
+
+        payload["attachment"] = [{
+            "name": anexo_nome,
+            "content": base64.b64encode(anexo_conteudo).decode("ascii"),
+        }]
 
     req = urllib.request.Request(
         "https://api.brevo.com/v3/smtp/email",
@@ -151,6 +168,115 @@ def normalizar_data_nascimento(valor):
     raise ValueError("Data de nascimento inválida")
 
 
+
+def _enviar_lote_atividades(con):
+    rows = con.execute("""
+        SELECT id, criado_em, metodo, caminho, estado_http, ip
+        FROM atividade_log
+        WHERE enviado_em IS NULL
+        ORDER BY id
+        LIMIT ?
+    """, (LOG_LOTE_TAMANHO,)).fetchall()
+
+    if len(rows) < LOG_LOTE_TAMANHO:
+        return
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow([
+        "ID",
+        "Data/Hora",
+        "Metodo",
+        "Caminho",
+        "HTTP",
+        "IP",
+    ])
+
+    for row in rows:
+        writer.writerow([
+            row["id"],
+            row["criado_em"],
+            row["metodo"],
+            row["caminho"],
+            row["estado_http"],
+            row["ip"] or "",
+        ])
+
+    agora = datetime.now().astimezone()
+    nome = agora.strftime("blessed-atividades-%Y%m%d-%H%M%S.csv")
+
+    enviado = enviar_email_brevo(
+        LOG_EMAIL_DESTINO,
+        "Blessed — log de 10 atividades",
+        (
+            "Segue em anexo o lote automático das últimas "
+            f"{LOG_LOTE_TAMANHO} atividades registadas no Blessed."
+        ),
+        anexo_nome=nome,
+        anexo_conteudo=buffer.getvalue().encode("utf-8-sig"),
+    )
+
+    if not enviado:
+        return
+
+    ids = [row["id"] for row in rows]
+    placeholders = ",".join("?" for _ in ids)
+
+    con.execute(
+        f"""
+        UPDATE atividade_log
+        SET enviado_em = ?
+        WHERE id IN ({placeholders})
+        """,
+        [agora.isoformat(timespec="seconds"), *ids],
+    )
+    con.commit()
+
+
+@app.after_request
+def registar_atividade_site(response):
+    # A bateria automática nunca gera logs nem emails reais.
+    if app.config.get("TESTING"):
+        return response
+
+    # Recursos estáticos não contam como atividade do utilizador.
+    if request.path.startswith("/static/") or request.path == "/favicon.ico":
+        return response
+
+    try:
+        with LOG_LOCK:
+            con = get_db()
+
+            ip = (
+                request.headers.get("CF-Connecting-IP")
+                or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+                or request.remote_addr
+                or ""
+            )
+
+            con.execute("""
+                INSERT INTO atividade_log
+                    (criado_em, metodo, caminho, estado_http, ip)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                datetime.now().astimezone().isoformat(timespec="seconds"),
+                request.method,
+                request.path,
+                int(response.status_code),
+                ip,
+            ))
+            con.commit()
+
+            _enviar_lote_atividades(con)
+            con.close()
+
+    except Exception as erro:
+        # Uma falha do log nunca deve impedir o funcionamento do Blessed.
+        print(f"LOG: falha ao registar/enviar atividade: {erro}")
+
+    return response
+
+
 @app.template_filter("data_pt")
 def data_pt(valor):
     """Apresenta datas ISO em DD/MM/AAAA sem alterar o valor guardado na base."""
@@ -224,6 +350,23 @@ def garantir_esquema():
             FOREIGN KEY (cliente_id) REFERENCES clientes(id),
             FOREIGN KEY (marcacao_id) REFERENCES marcacoes(id)
         )
+    """)
+
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS atividade_log (
+            id INTEGER PRIMARY KEY,
+            criado_em TEXT NOT NULL,
+            metodo TEXT NOT NULL,
+            caminho TEXT NOT NULL,
+            estado_http INTEGER NOT NULL,
+            ip TEXT,
+            enviado_em TEXT
+        )
+    """)
+
+    con.execute("""
+        CREATE INDEX IF NOT EXISTS idx_atividade_log_pendente
+        ON atividade_log (enviado_em, id)
     """)
 
     con.commit()
