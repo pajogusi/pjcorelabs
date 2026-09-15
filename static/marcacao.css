@@ -287,3 +287,24 @@
     white-space: nowrap;
     pointer-events: none;
 }
+
+/* A agenda inteira é o contentor de scroll. Assim a barra dos dias
+   permanece visível enquanto se desce para as horas mais tardias. */
+.agenda-semanal {
+    max-height: calc(100vh - 245px);
+    overflow: auto !important;
+}
+
+.agenda-semanal .agenda-cabecalho {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #141414;
+}
+
+.agenda-semanal .agenda-corpo {
+    height: auto !important;
+    min-height: 420px;
+    max-height: none !important;
+    overflow: visible !important;
+}
