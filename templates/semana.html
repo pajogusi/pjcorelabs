@@ -22,7 +22,7 @@
                 <button class="menu-item" type="button" title="Comunicações"><span class="menu-icone">✉</span><span>Comunicações</span></button>
                 <a href="/definicoes" class="menu-item" title="Definições"><span class="menu-icone">⚙</span><span>Definições</span></a>
                 <button class="menu-item" type="button" id="refresh-forcado" title="Atualizar"><span class="menu-icone">↻</span><span>Atualizar</span></button>
-                <a href="https://blessed.pjcorelabs.com/cdn-cgi/access/logout" class="menu-item" title="Terminar sessão"><span class="menu-icone">⏻</span><span>Sair</span></a>
+                <a href="/logout" class="menu-item" title="Terminar sessão"><span class="menu-icone">⏻</span><span>Sair</span></a>
             </nav>
 
             <section class="meses-rapidos">
@@ -38,6 +38,16 @@
                 </a>
                 {% endfor %}
             </section>
+
+            {% if utilizador.papel == 'gestor' %}
+            <form method="get" style="margin:0 0 12px">
+                <input type="hidden" name="data" value="{{ inicio_semana.isoformat() }}">
+                <label>Agenda: <select name="barbeiro" onchange="this.form.submit()">
+                    <option value="">Todas</option>
+                    {% for barbeiro in barbeiros %}<option value="{{ barbeiro.id }}" {% if barbeiro_selecionado == barbeiro.id %}selected{% endif %}>{{ barbeiro.nome }}</option>{% endfor %}
+                </select></label>
+            </form>
+            {% endif %}
         </aside>
 
         <main class="main-semana">
@@ -111,6 +121,9 @@
                 <label>Data de nascimento <span class="campo-opcional">opcional</span><input type="text" id="nascimentoCliente" inputmode="numeric" autocomplete="bday" placeholder="DD/MM/AAAA" maxlength="10"><input type="hidden" name="data_nascimento" id="nascimentoClienteIso"></label>
 
                 <label>Duração<select name="duracao"><option value="15">15 minutos</option><option value="30" selected>30 minutos</option><option value="45">45 minutos</option><option value="60">60 minutos</option><option value="90">90 minutos</option></select></label>
+                {% if utilizador.papel == 'gestor' %}
+                <label>Barbeiro<select name="barbeiro_id" id="barbeiroMarcacao" required><option value="">Escolher</option>{% for barbeiro in barbeiros %}<option value="{{ barbeiro.id }}" {% if barbeiro_selecionado == barbeiro.id %}selected{% endif %}>{{ barbeiro.nome }}</option>{% endfor %}</select></label>
+                {% else %}<input type="hidden" name="barbeiro_id" id="barbeiroMarcacao" value="{{ utilizador.id }}">{% endif %}
             </div>
             <div id="estadoCliente" class="estado-cliente"></div>
             <label>Observações <span class="campo-opcional">opcional</span><textarea name="observacoes" rows="3" placeholder="Notas úteis desta marcação"></textarea></label>
@@ -186,11 +199,11 @@
 <script>
 const modal=document.getElementById('modalMarcacao'),modalEstado=document.getElementById('modalEstado');
 const campoData=document.getElementById('dataMarcacao'),campoHora=document.getElementById('horaMarcacao'),campoInicio=document.getElementById('inicioMarcacao');
-const telefoneCliente=document.getElementById('telefoneCliente'),nomeCliente=document.getElementById('nomeCliente'),emailCliente=document.getElementById('emailCliente'),nascimentoCliente=document.getElementById('nascimentoCliente'),nascimentoClienteIso=document.getElementById('nascimentoClienteIso'),estadoCliente=document.getElementById('estadoCliente');
+const telefoneCliente=document.getElementById('telefoneCliente'),nomeCliente=document.getElementById('nomeCliente'),emailCliente=document.getElementById('emailCliente'),nascimentoCliente=document.getElementById('nascimentoCliente'),nascimentoClienteIso=document.getElementById('nascimentoClienteIso'),estadoCliente=document.getElementById('estadoCliente'),barbeiroMarcacao=document.getElementById('barbeiroMarcacao');
 let temporizadorTelefone=null;
 function dataPt(data){if(!data)return '';const p=data.slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:data;}
 function formatarDataMarcacao(){const data=campoData.value,hora=campoHora.value;if(!data||!hora)return;const p=data.split('-'),nomes=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];const d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));document.getElementById('horarioMarcacao').textContent=nomes[d.getDay()]+' · '+p[2]+'/'+p[1]+'/'+p[0];document.getElementById('horaDestaque').textContent=hora;campoInicio.value=data+'T'+hora;}
-async function verificarDisponibilidade(){const duracao=document.querySelector('#formNovaMarcacao [name="duracao"]').value,estado=document.getElementById('estadoDisponibilidade'),marcar=document.querySelector('.botao-marcar');estado.className='estado-disponibilidade';estado.textContent='A verificar...';marcar.disabled=true;try{const params=new URLSearchParams({data:campoData.value,hora:campoHora.value,duracao});const resposta=await fetch('/api/disponibilidade?'+params.toString()),resultado=await resposta.json();if(!resposta.ok||!resultado.ok)throw new Error();if(resultado.disponivel){estado.className='estado-disponibilidade disponibilidade-livre';estado.textContent='✓ Disponível · '+resultado.inicio+'–'+resultado.fim;marcar.disabled=false;}else{estado.className='estado-disponibilidade disponibilidade-ocupada';if(resultado.conflitos&&resultado.conflitos.length){const c=resultado.conflitos[0];estado.textContent='⚠ Ocupado · '+c.inicio+'–'+c.fim+' · '+c.nome;}else estado.textContent='⚠ Horário indisponível';}}catch(e){estado.className='estado-disponibilidade disponibilidade-ocupada';estado.textContent='⚠ Não foi possível verificar o horário';}}
+async function verificarDisponibilidade(){const duracao=document.querySelector('#formNovaMarcacao [name="duracao"]').value,estado=document.getElementById('estadoDisponibilidade'),marcar=document.querySelector('.botao-marcar');estado.className='estado-disponibilidade';estado.textContent='A verificar...';marcar.disabled=true;if(!barbeiroMarcacao.value){estado.textContent='Escolhe o barbeiro.';return;}try{const params=new URLSearchParams({data:campoData.value,hora:campoHora.value,duracao,barbeiro_id:barbeiroMarcacao.value});const resposta=await fetch('/api/disponibilidade?'+params.toString()),resultado=await resposta.json();if(!resposta.ok||!resultado.ok)throw new Error();if(resultado.disponivel){estado.className='estado-disponibilidade disponibilidade-livre';estado.textContent='✓ Disponível · '+resultado.inicio+'–'+resultado.fim;marcar.disabled=false;}else{estado.className='estado-disponibilidade disponibilidade-ocupada';if(resultado.conflitos&&resultado.conflitos.length){const c=resultado.conflitos[0];estado.textContent='⚠ Ocupado · '+c.inicio+'–'+c.fim+' · '+c.nome;}else estado.textContent='⚠ Horário indisponível';}}catch(e){estado.className='estado-disponibilidade disponibilidade-ocupada';estado.textContent='⚠ Não foi possível verificar o horário';}}
 async function procurarClientePorTelefone(){
     const telefone=telefoneCliente.value.trim();
     estadoCliente.textContent='';
