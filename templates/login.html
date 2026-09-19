@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar — Blessed</title>
+</head>
+<body>
+  <main style="max-width:360px;margin:10vh auto;font-family:system-ui">
+    <h1>Blessed</h1>
+    <p>Entrar na agenda</p>
+    {% if erro %}<p role="alert">{{ erro }}</p>{% endif %}
+    <form method="post">
+      <p><label>Utilizador<br><input name="username" autocomplete="username" required autofocus></label></p>
+      <p><label>Palavra-passe<br><input type="password" name="password" autocomplete="current-password" required></label></p>
+      <button type="submit">Entrar</button>
+    </form>
+  </main>
+</body>
+</html>
