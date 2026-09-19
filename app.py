@@ -10,9 +10,12 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, abort, g, redirect, render_template, request, session, url_for
+from functools import wraps
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
+app.config["SECRET_KEY"] = os.environ.get("BLESSED_SECRET_KEY", "blessed-multiuser-test-only")
 
 DB = Path(__file__).with_name("blessed.db")
 
@@ -138,6 +141,89 @@ def get_db():
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys = ON")
     return con
+
+
+def utilizador_atual():
+    if "utilizador" not in g:
+        utilizador_id = session.get("utilizador_id")
+        if not utilizador_id:
+            g.utilizador = None
+        else:
+            con = get_db()
+            g.utilizador = con.execute(
+                "SELECT id, nome, username, papel, ativo FROM utilizadores WHERE id = ?",
+                (utilizador_id,),
+            ).fetchone()
+            con.close()
+    return g.utilizador
+
+
+def gestor():
+    utilizador = utilizador_atual()
+    return bool(utilizador and utilizador["papel"] == "gestor")
+
+
+def requer_login(func):
+    @wraps(func)
+    def protegido(*args, **kwargs):
+        utilizador = utilizador_atual()
+        if not utilizador or not utilizador["ativo"]:
+            session.clear()
+            return redirect(url_for("login"))
+        return func(*args, **kwargs)
+    return protegido
+
+
+def requer_gestor(func):
+    @wraps(func)
+    @requer_login
+    def protegido(*args, **kwargs):
+        if not gestor():
+            abort(403)
+        return func(*args, **kwargs)
+    return protegido
+
+
+def barbeiro_permitido(barbeiro_id):
+    """O gestor pode escolher qualquer profissional; o barbeiro apenas a si próprio."""
+    utilizador = utilizador_atual()
+    return bool(utilizador and (utilizador["papel"] == "gestor" or utilizador["id"] == barbeiro_id))
+
+
+@app.before_request
+def exigir_autenticacao():
+    if request.endpoint in {"login", "logout", "static"}:
+        return None
+    utilizador = utilizador_atual()
+    if not utilizador or not utilizador["ativo"]:
+        session.clear()
+        return redirect(url_for("login"))
+    return None
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        con = get_db()
+        utilizador = con.execute(
+            "SELECT id, password_hash, ativo FROM utilizadores WHERE username = ?",
+            (username,),
+        ).fetchone()
+        con.close()
+        if utilizador and utilizador["ativo"] and check_password_hash(utilizador["password_hash"], password):
+            session.clear()
+            session["utilizador_id"] = utilizador["id"]
+            return redirect(url_for("semana"))
+        return render_template("login.html", erro="Utilizador ou palavra-passe incorretos."), 401
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 
 def normalizar_telefone(numero):
@@ -295,6 +381,22 @@ def garantir_esquema():
     colunas = {row["name"] for row in con.execute("PRAGMA table_info(marcacoes)")}
     if "observacoes" not in colunas:
         con.execute("ALTER TABLE marcacoes ADD COLUMN observacoes TEXT")
+    if "barbeiro_id" not in colunas:
+        con.execute("ALTER TABLE marcacoes ADD COLUMN barbeiro_id INTEGER")
+
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS utilizadores (
+            id INTEGER PRIMARY KEY,
+            nome TEXT NOT NULL,
+            username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            password_hash TEXT NOT NULL,
+            papel TEXT NOT NULL CHECK (papel IN ('gestor', 'barbeiro')),
+            ativo INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
+            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    con.execute("CREATE INDEX IF NOT EXISTS idx_marcacoes_barbeiro_inicio ON marcacoes (barbeiro_id, inicio)")
 
     colunas_clientes = {row["name"] for row in con.execute("PRAGMA table_info(clientes)")}
     if "alerta_inatividade_visto_em" not in colunas_clientes:
@@ -571,13 +673,25 @@ def semana():
 
     con = get_db()
     concretizar_marcacoes_vencidas(con)
+    utilizador = utilizador_atual()
+    barbeiros = con.execute(
+        "SELECT id, nome FROM utilizadores WHERE ativo = 1 AND papel IN ('gestor', 'barbeiro') ORDER BY nome COLLATE NOCASE"
+    ).fetchall()
+    barbeiro_pedido = request.args.get("barbeiro", "").strip()
+    barbeiro_id = None
+    if utilizador["papel"] == "barbeiro":
+        barbeiro_id = utilizador["id"]
+    elif barbeiro_pedido.isdigit() and any(b["id"] == int(barbeiro_pedido) for b in barbeiros):
+        barbeiro_id = int(barbeiro_pedido)
+
+    filtro_barbeiro = " AND m.barbeiro_id = ?" if barbeiro_id else ""
     marcacoes = con.execute("""
-        SELECT m.id, m.inicio, m.duracao_minutos, m.servico, m.estado, c.nome
+        SELECT m.id, m.inicio, m.duracao_minutos, m.servico, m.estado, c.nome, m.barbeiro_id
         FROM marcacoes AS m
         JOIN clientes AS c ON c.id = m.cliente_id
-        WHERE substr(m.inicio, 1, 10) BETWEEN ? AND ? AND m.estado != 'cancelada'
-        ORDER BY m.inicio
-    """, (inicio_semana.isoformat(), fim_semana.isoformat())).fetchall()
+        WHERE substr(m.inicio, 1, 10) BETWEEN ? AND ? AND m.estado != 'cancelada'""" + filtro_barbeiro + " ORDER BY m.inicio",
+        (inicio_semana.isoformat(), fim_semana.isoformat(), *([barbeiro_id] if barbeiro_id else [])),
+    ).fetchall()
     clientes_inativos = obter_clientes_inativos(con, apenas_pendentes=True)
     con.close()
 
@@ -603,7 +717,8 @@ def semana():
                 "duracao": m["duracao_minutos"],
                 "servico": m["servico"],
                 "estado": m["estado"],
-                "nome": m["nome"]
+                "nome": m["nome"],
+                "barbeiro_id": m["barbeiro_id"],
             })
         # Calcula, para cada marcação, os intervalos em que existe
         # sobreposição com outra marcação do mesmo dia.
@@ -663,6 +778,9 @@ def semana():
         horas_grelha=horas_grelha,
         clientes_inativos=clientes_inativos,
         meses_rapidos=meses_rapidos,
+        utilizador=utilizador,
+        barbeiros=barbeiros,
+        barbeiro_selecionado=barbeiro_id,
     )
 
 @app.route("/servicos")
@@ -1001,6 +1119,13 @@ def disponibilidade():
     except (ValueError, TypeError):
         return {"ok": False, "erro": "Data, hora ou duração inválida"}, 400
 
+    utilizador = utilizador_atual()
+    barbeiro_id = request.args.get("barbeiro_id", type=int)
+    if utilizador["papel"] == "barbeiro":
+        barbeiro_id = utilizador["id"]
+    if not barbeiro_id or not barbeiro_permitido(barbeiro_id):
+        return {"ok": False, "erro": "Barbeiro inválido"}, 403
+
     fim = inicio + timedelta(minutes=duracao)
     con = get_db()
     concretizar_marcacoes_vencidas(con)
@@ -1008,9 +1133,9 @@ def disponibilidade():
         SELECT m.id, m.inicio, m.duracao_minutos, m.servico, c.nome
         FROM marcacoes AS m
         JOIN clientes AS c ON c.id = m.cliente_id
-        WHERE substr(m.inicio, 1, 10) = ? AND m.estado != 'cancelada'
+        WHERE substr(m.inicio, 1, 10) = ? AND m.estado != 'cancelada' AND m.barbeiro_id = ?
         ORDER BY m.inicio
-    """, (inicio.date().isoformat(),)).fetchall()
+    """, (inicio.date().isoformat(), barbeiro_id)).fetchall()
     con.close()
 
     conflitos = []
@@ -1037,6 +1162,12 @@ def nova_marcacao():
         return "Data de nascimento inválida", 400
 
     observacoes = request.form.get("observacoes", "").strip() or None
+    utilizador = utilizador_atual()
+    barbeiro_id = request.form.get("barbeiro_id", type=int)
+    if utilizador["papel"] == "barbeiro":
+        barbeiro_id = utilizador["id"]
+    if not barbeiro_id or not barbeiro_permitido(barbeiro_id):
+        return "Barbeiro inválido", 403
     inicio = request.form.get("inicio", "").strip()
     servico = ""
     try:
@@ -1058,8 +1189,8 @@ def nova_marcacao():
     conflitos = con.execute("""
         SELECT m.inicio, m.duracao_minutos
         FROM marcacoes m
-        WHERE substr(m.inicio, 1, 10) = ? AND m.estado != 'cancelada'
-    """, (novo_inicio.date().isoformat(),)).fetchall()
+        WHERE substr(m.inicio, 1, 10) = ? AND m.estado != 'cancelada' AND m.barbeiro_id = ?
+    """, (novo_inicio.date().isoformat(), barbeiro_id)).fetchall()
 
     for m in conflitos:
         existente_inicio = datetime.fromisoformat(m["inicio"])
@@ -1104,9 +1235,9 @@ def nova_marcacao():
 
         cur.execute("""
             INSERT INTO marcacoes
-            (cliente_id, inicio, duracao_minutos, servico, observacoes)
-            VALUES (?, ?, ?, ?, ?)
-        """, (cliente_id, inicio, duracao, servico, observacoes))
+            (cliente_id, inicio, duracao_minutos, servico, observacoes, barbeiro_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (cliente_id, inicio, duracao, servico, observacoes, barbeiro_id))
         marcacao_id = cur.lastrowid
 
         # Lembrete por SMS às 18:00 do dia anterior.
@@ -1176,7 +1307,7 @@ def alterar_duracao_marcacao(marcacao_id):
     concretizar_marcacoes_vencidas(con)
 
     marcacao = con.execute("""
-        SELECT m.id, m.inicio, m.duracao_minutos, m.estado
+        SELECT m.id, m.inicio, m.duracao_minutos, m.estado, m.barbeiro_id
         FROM marcacoes m
         WHERE m.id = ?
     """, (marcacao_id,)).fetchone()
@@ -1184,6 +1315,9 @@ def alterar_duracao_marcacao(marcacao_id):
     if not marcacao:
         con.close()
         return {"ok": False, "erro": "Marcação não encontrada"}, 404
+    if not barbeiro_permitido(marcacao["barbeiro_id"]):
+        con.close()
+        return {"ok": False, "erro": "Sem permissão para esta marcação"}, 403
 
     novo_inicio = datetime.fromisoformat(marcacao["inicio"])
     novo_fim = novo_inicio + timedelta(minutes=duracao)
@@ -1253,10 +1387,13 @@ def alterar_estado_marcacao(marcacao_id):
 
     con = get_db()
     concretizar_marcacoes_vencidas(con)
-    marcacao = con.execute("SELECT id, inicio FROM marcacoes WHERE id = ?", (marcacao_id,)).fetchone()
+    marcacao = con.execute("SELECT id, inicio, barbeiro_id FROM marcacoes WHERE id = ?", (marcacao_id,)).fetchone()
     if not marcacao:
         con.close()
         return "Marcação não encontrada", 404
+    if not barbeiro_permitido(marcacao["barbeiro_id"]):
+        con.close()
+        return "Sem permissão para esta marcação", 403
 
     con.execute(
         "UPDATE marcacoes SET estado = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
