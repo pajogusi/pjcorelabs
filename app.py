@@ -208,6 +208,19 @@ def pode_marcar_para(barbeiro_id):
     ))
 
 
+def pode_alterar_marcacao(marcacao):
+    """Só o gestor, o barbeiro responsável, ou quem a criou para outro pode alterar."""
+    utilizador = utilizador_atual()
+    return bool(utilizador and (
+        utilizador["papel"] == "gestor"
+        or marcacao["barbeiro_id"] == utilizador["id"]
+        or (
+            utilizador["pode_marcar_outros"]
+            and marcacao["criado_por_id"] == utilizador["id"]
+        )
+    ))
+
+
 @app.before_request
 def exigir_autenticacao():
     if request.endpoint in {"login", "logout", "static"}:
@@ -401,6 +414,8 @@ def garantir_esquema():
         con.execute("ALTER TABLE marcacoes ADD COLUMN observacoes TEXT")
     if "barbeiro_id" not in colunas:
         con.execute("ALTER TABLE marcacoes ADD COLUMN barbeiro_id INTEGER")
+    if "criado_por_id" not in colunas:
+        con.execute("ALTER TABLE marcacoes ADD COLUMN criado_por_id INTEGER")
 
     con.execute("""
         CREATE TABLE IF NOT EXISTS utilizadores (
@@ -1262,9 +1277,9 @@ def nova_marcacao():
 
         cur.execute("""
             INSERT INTO marcacoes
-            (cliente_id, inicio, duracao_minutos, servico, observacoes, barbeiro_id)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (cliente_id, inicio, duracao, servico, observacoes, barbeiro_id))
+            (cliente_id, inicio, duracao_minutos, servico, observacoes, barbeiro_id, criado_por_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (cliente_id, inicio, duracao, servico, observacoes, barbeiro_id, utilizador["id"]))
         marcacao_id = cur.lastrowid
 
         # Lembrete por SMS às 18:00 do dia anterior.
@@ -1334,7 +1349,7 @@ def alterar_duracao_marcacao(marcacao_id):
     concretizar_marcacoes_vencidas(con)
 
     marcacao = con.execute("""
-        SELECT m.id, m.inicio, m.duracao_minutos, m.estado, m.barbeiro_id
+        SELECT m.id, m.inicio, m.duracao_minutos, m.estado, m.barbeiro_id, m.criado_por_id
         FROM marcacoes m
         WHERE m.id = ?
     """, (marcacao_id,)).fetchone()
@@ -1342,7 +1357,7 @@ def alterar_duracao_marcacao(marcacao_id):
     if not marcacao:
         con.close()
         return {"ok": False, "erro": "Marcação não encontrada"}, 404
-    if not barbeiro_permitido(marcacao["barbeiro_id"]):
+    if not pode_alterar_marcacao(marcacao):
         con.close()
         return {"ok": False, "erro": "Sem permissão para esta marcação"}, 403
 
@@ -1414,11 +1429,11 @@ def alterar_estado_marcacao(marcacao_id):
 
     con = get_db()
     concretizar_marcacoes_vencidas(con)
-    marcacao = con.execute("SELECT id, inicio, barbeiro_id FROM marcacoes WHERE id = ?", (marcacao_id,)).fetchone()
+    marcacao = con.execute("SELECT id, inicio, barbeiro_id, criado_por_id FROM marcacoes WHERE id = ?", (marcacao_id,)).fetchone()
     if not marcacao:
         con.close()
         return "Marcação não encontrada", 404
-    if not barbeiro_permitido(marcacao["barbeiro_id"]):
+    if not pode_alterar_marcacao(marcacao):
         con.close()
         return "Sem permissão para esta marcação", 403
 
