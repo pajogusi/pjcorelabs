@@ -3,6 +3,7 @@ import csv
 import io
 import json
 import os
+import secrets
 import threading
 import sqlite3
 import urllib.error
@@ -261,7 +262,7 @@ def barbeiro_livre_para_reserva(con, barbeiro_id, inicio, duracao_minutos):
 
 @app.before_request
 def exigir_autenticacao():
-    if request.endpoint in {"login", "logout", "static"}:
+    if request.endpoint in {"login", "logout", "online_reservar", "online_reservar_submeter", "online_reserva_pagamento", "static"}:
         return None
     utilizador = utilizador_atual()
     if not utilizador or not utilizador["ativo"]:
@@ -293,6 +294,81 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+@app.route("/reservar")
+def online_reservar():
+    con = get_db()
+    expirar_reservas_online(con)
+    barbeiros = con.execute(
+        "SELECT id, nome FROM utilizadores WHERE ativo = 1 ORDER BY nome COLLATE NOCASE"
+    ).fetchall()
+    con.close()
+    return render_template(
+        "reservar_online.html",
+        barbeiros=barbeiros,
+        servicos=["Corte", "Barba", "Corte + Barba"],
+        hoje=date.today().isoformat(),
+    )
+
+
+@app.route("/reservar", methods=["POST"])
+def online_reservar_submeter():
+    nome = request.form.get("nome", "").strip()
+    telefone = normalizar_telefone(request.form.get("telefone", ""))
+    email = request.form.get("email", "").strip() or None
+    servico = request.form.get("servico", "").strip()
+    escolha = request.form.get("barbeiro", "").strip()
+    try:
+        inicio = datetime.fromisoformat(request.form.get("inicio", "").strip())
+        duracao = int(request.form.get("duracao", "30"))
+    except (TypeError, ValueError):
+        return render_template("reservar_online.html", erro="Escolhe uma data e hora válidas."), 400
+    if not nome or not telefone or servico not in {"Corte", "Barba", "Corte + Barba"} or duracao not in {15, 30, 45, 60, 90}:
+        return render_template("reservar_online.html", erro="Preenche os dados obrigatórios."), 400
+
+    con = get_db()
+    expirar_reservas_online(con)
+    barbeiros = con.execute("SELECT id, nome FROM utilizadores WHERE ativo = 1 ORDER BY nome COLLATE NOCASE").fetchall()
+    if escolha == "primeiro":
+        barbeiro = next((b for b in barbeiros if barbeiro_livre_para_reserva(con, b["id"], inicio, duracao)), None)
+    else:
+        barbeiro = next((b for b in barbeiros if str(b["id"]) == escolha), None)
+        if barbeiro and not barbeiro_livre_para_reserva(con, barbeiro["id"], inicio, duracao):
+            barbeiro = None
+    if not barbeiro:
+        con.close()
+        return render_template("reservar_online.html", barbeiros=barbeiros, servicos=["Corte", "Barba", "Corte + Barba"], hoje=date.today().isoformat(), erro="Esse horário já não está disponível. Escolhe outro."), 409
+
+    expira_em = datetime.now().astimezone() + timedelta(minutes=15)
+    token = secrets.token_urlsafe(24)
+    cur = con.execute("""
+        INSERT INTO reservas_online
+        (token_publico, barbeiro_id, inicio, duracao_minutos, servico, nome_cliente, telefone_cliente, email_cliente, expira_em)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (token, barbeiro["id"], inicio.isoformat(timespec="minutes"), duracao, servico, nome, telefone, email, expira_em.isoformat(timespec="seconds")))
+    reserva_id = cur.lastrowid
+    con.execute("INSERT INTO pagamentos_online (reserva_id) VALUES (?)", (reserva_id,))
+    con.commit()
+    con.close()
+    return redirect(url_for("online_reserva_pagamento", token=token))
+
+
+@app.route("/reservar/pagamento/<token>")
+def online_reserva_pagamento(token):
+    con = get_db()
+    expirar_reservas_online(con)
+    reserva = con.execute("""
+        SELECT r.*, u.nome AS barbeiro, p.valor_pence, p.estado AS pagamento_estado
+        FROM reservas_online r
+        JOIN utilizadores u ON u.id = r.barbeiro_id
+        JOIN pagamentos_online p ON p.reserva_id = r.id
+        WHERE r.token_publico = ?
+    """, (token,)).fetchone()
+    con.close()
+    if not reserva:
+        abort(404)
+    return render_template("pagamento_online.html", reserva=reserva)
 
 
 def normalizar_telefone(numero):
