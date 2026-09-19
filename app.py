@@ -221,6 +221,44 @@ def pode_alterar_marcacao(marcacao):
     ))
 
 
+def expirar_reservas_online(con, agora=None):
+    """Liberta reservas online cujo sinal não foi pago em 15 minutos."""
+    agora = agora or datetime.now().astimezone()
+    con.execute("""
+        UPDATE reservas_online
+        SET estado = 'expirada'
+        WHERE estado = 'aguarda_pagamento' AND expira_em <= ?
+    """, (agora.isoformat(timespec="seconds"),))
+    con.execute("""
+        UPDATE pagamentos_online
+        SET estado = 'expirado', atualizado_em = ?
+        WHERE estado = 'pendente'
+          AND reserva_id IN (SELECT id FROM reservas_online WHERE estado = 'expirada')
+    """, (agora.isoformat(timespec="seconds"),))
+    con.commit()
+
+
+def barbeiro_livre_para_reserva(con, barbeiro_id, inicio, duracao_minutos):
+    """Disponibilidade de um profissional, incluindo reservas a aguardar pagamento."""
+    expirar_reservas_online(con)
+    fim = inicio + timedelta(minutes=duracao_minutos)
+    marcacoes = con.execute("""
+        SELECT inicio, duracao_minutos FROM marcacoes
+        WHERE barbeiro_id = ? AND estado != 'cancelada'
+          AND substr(inicio, 1, 10) = ?
+        UNION ALL
+        SELECT inicio, duracao_minutos FROM reservas_online
+        WHERE barbeiro_id = ? AND estado = 'aguarda_pagamento'
+          AND substr(inicio, 1, 10) = ?
+    """, (barbeiro_id, inicio.date().isoformat(), barbeiro_id, inicio.date().isoformat())).fetchall()
+    for item in marcacoes:
+        existente_inicio = datetime.fromisoformat(item["inicio"])
+        existente_fim = existente_inicio + timedelta(minutes=item["duracao_minutos"])
+        if inicio < existente_fim and fim > existente_inicio:
+            return False
+    return True
+
+
 @app.before_request
 def exigir_autenticacao():
     if request.endpoint in {"login", "logout", "static"}:
@@ -437,6 +475,46 @@ def garantir_esquema():
     if "pode_marcar_outros" not in colunas_utilizadores:
         con.execute("ALTER TABLE utilizadores ADD COLUMN pode_marcar_outros INTEGER NOT NULL DEFAULT 0")
     con.execute("CREATE INDEX IF NOT EXISTS idx_marcacoes_barbeiro_inicio ON marcacoes (barbeiro_id, inicio)")
+
+    # Reservas online ficam separadas das marcações confirmadas: só passam à
+    # agenda depois da confirmação de pagamento pelo fornecedor escolhido.
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS reservas_online (
+            id INTEGER PRIMARY KEY,
+            token_publico TEXT NOT NULL UNIQUE,
+            barbeiro_id INTEGER NOT NULL,
+            inicio TEXT NOT NULL,
+            duracao_minutos INTEGER NOT NULL CHECK (duracao_minutos > 0),
+            servico TEXT NOT NULL,
+            nome_cliente TEXT NOT NULL,
+            telefone_cliente TEXT NOT NULL,
+            email_cliente TEXT,
+            estado TEXT NOT NULL DEFAULT 'aguarda_pagamento'
+                CHECK (estado IN ('aguarda_pagamento', 'paga', 'expirada', 'cancelada', 'reagendada')),
+            expira_em TEXT NOT NULL,
+            marcacao_id INTEGER UNIQUE,
+            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (barbeiro_id) REFERENCES utilizadores(id),
+            FOREIGN KEY (marcacao_id) REFERENCES marcacoes(id)
+        )
+    """)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS pagamentos_online (
+            id INTEGER PRIMARY KEY,
+            reserva_id INTEGER NOT NULL UNIQUE,
+            fornecedor TEXT,
+            referencia_fornecedor TEXT UNIQUE,
+            valor_pence INTEGER NOT NULL DEFAULT 1000 CHECK (valor_pence = 1000),
+            moeda TEXT NOT NULL DEFAULT 'GBP',
+            estado TEXT NOT NULL DEFAULT 'pendente'
+                CHECK (estado IN ('pendente', 'autorizado', 'pago', 'falhou', 'reembolsado', 'expirado')),
+            confirmado_em TEXT,
+            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (reserva_id) REFERENCES reservas_online(id)
+        )
+    """)
+    con.execute("CREATE INDEX IF NOT EXISTS idx_reservas_online_expira ON reservas_online (estado, expira_em)")
 
     colunas_clientes = {row["name"] for row in con.execute("PRAGMA table_info(clientes)")}
     if "alerta_inatividade_visto_em" not in colunas_clientes:
