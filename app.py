@@ -151,7 +151,7 @@ def utilizador_atual():
         else:
             con = get_db()
             g.utilizador = con.execute(
-                "SELECT id, nome, username, papel, ativo FROM utilizadores WHERE id = ?",
+                "SELECT id, nome, username, papel, ativo, pode_consultar_agendas, pode_marcar_outros FROM utilizadores WHERE id = ?",
                 (utilizador_id,),
             ).fetchone()
             con.close()
@@ -188,6 +188,24 @@ def barbeiro_permitido(barbeiro_id):
     """O gestor pode escolher qualquer profissional; o barbeiro apenas a si próprio."""
     utilizador = utilizador_atual()
     return bool(utilizador and (utilizador["papel"] == "gestor" or utilizador["id"] == barbeiro_id))
+
+
+def pode_consultar_agenda(barbeiro_id):
+    utilizador = utilizador_atual()
+    return bool(utilizador and (
+        utilizador["papel"] == "gestor"
+        or utilizador["id"] == barbeiro_id
+        or utilizador["pode_consultar_agendas"]
+    ))
+
+
+def pode_marcar_para(barbeiro_id):
+    utilizador = utilizador_atual()
+    return bool(utilizador and (
+        utilizador["papel"] == "gestor"
+        or utilizador["id"] == barbeiro_id
+        or utilizador["pode_marcar_outros"]
+    ))
 
 
 @app.before_request
@@ -392,10 +410,17 @@ def garantir_esquema():
             password_hash TEXT NOT NULL,
             papel TEXT NOT NULL CHECK (papel IN ('gestor', 'barbeiro')),
             ativo INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
+            pode_consultar_agendas INTEGER NOT NULL DEFAULT 0 CHECK (pode_consultar_agendas IN (0, 1)),
+            pode_marcar_outros INTEGER NOT NULL DEFAULT 0 CHECK (pode_marcar_outros IN (0, 1)),
             criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    colunas_utilizadores = {row["name"] for row in con.execute("PRAGMA table_info(utilizadores)")}
+    if "pode_consultar_agendas" not in colunas_utilizadores:
+        con.execute("ALTER TABLE utilizadores ADD COLUMN pode_consultar_agendas INTEGER NOT NULL DEFAULT 0")
+    if "pode_marcar_outros" not in colunas_utilizadores:
+        con.execute("ALTER TABLE utilizadores ADD COLUMN pode_marcar_outros INTEGER NOT NULL DEFAULT 0")
     con.execute("CREATE INDEX IF NOT EXISTS idx_marcacoes_barbeiro_inicio ON marcacoes (barbeiro_id, inicio)")
 
     colunas_clientes = {row["name"] for row in con.execute("PRAGMA table_info(clientes)")}
@@ -679,10 +704,10 @@ def semana():
     ).fetchall()
     barbeiro_pedido = request.args.get("barbeiro", "").strip()
     barbeiro_id = None
-    if utilizador["papel"] == "barbeiro":
-        barbeiro_id = utilizador["id"]
-    elif barbeiro_pedido.isdigit() and any(b["id"] == int(barbeiro_pedido) for b in barbeiros):
+    if barbeiro_pedido.isdigit() and any(b["id"] == int(barbeiro_pedido) for b in barbeiros) and pode_consultar_agenda(int(barbeiro_pedido)):
         barbeiro_id = int(barbeiro_pedido)
+    elif utilizador["papel"] == "barbeiro":
+        barbeiro_id = utilizador["id"]
 
     filtro_barbeiro = " AND m.barbeiro_id = ?" if barbeiro_id else ""
     marcacoes = con.execute("""
@@ -717,7 +742,7 @@ def semana():
                 "duracao": m["duracao_minutos"],
                 "servico": m["servico"],
                 "estado": m["estado"],
-                "nome": m["nome"],
+                "nome": m["nome"] if gestor() or m["barbeiro_id"] == utilizador["id"] else "Ocupado",
                 "barbeiro_id": m["barbeiro_id"],
             })
         # Calcula, para cada marcação, os intervalos em que existe
@@ -781,6 +806,8 @@ def semana():
         utilizador=utilizador,
         barbeiros=barbeiros,
         barbeiro_selecionado=barbeiro_id,
+        pode_consultar_outros=bool(utilizador["pode_consultar_agendas"]),
+        pode_marcar_outros=bool(utilizador["pode_marcar_outros"]),
     )
 
 @app.route("/servicos")
@@ -1121,9 +1148,9 @@ def disponibilidade():
 
     utilizador = utilizador_atual()
     barbeiro_id = request.args.get("barbeiro_id", type=int)
-    if utilizador["papel"] == "barbeiro":
+    if not barbeiro_id:
         barbeiro_id = utilizador["id"]
-    if not barbeiro_id or not barbeiro_permitido(barbeiro_id):
+    if not pode_consultar_agenda(barbeiro_id):
         return {"ok": False, "erro": "Barbeiro inválido"}, 403
 
     fim = inicio + timedelta(minutes=duracao)
@@ -1143,7 +1170,7 @@ def disponibilidade():
         existente_inicio = datetime.fromisoformat(m["inicio"])
         existente_fim = existente_inicio + timedelta(minutes=m["duracao_minutos"])
         if inicio < existente_fim and fim > existente_inicio:
-            conflitos.append({"id": m["id"], "nome": m["nome"], "servico": m["servico"], "inicio": existente_inicio.strftime("%H:%M"), "fim": existente_fim.strftime("%H:%M")})
+            conflitos.append({"id": m["id"], "nome": m["nome"] if barbeiro_permitido(barbeiro_id) else "Ocupado", "servico": m["servico"] if barbeiro_permitido(barbeiro_id) else "", "inicio": existente_inicio.strftime("%H:%M"), "fim": existente_fim.strftime("%H:%M")})
 
     return {"ok": True, "disponivel": len(conflitos) == 0, "data": inicio.date().isoformat(), "inicio": inicio.strftime("%H:%M"), "fim": fim.strftime("%H:%M"), "duracao": duracao, "conflitos": conflitos}
 
@@ -1164,9 +1191,9 @@ def nova_marcacao():
     observacoes = request.form.get("observacoes", "").strip() or None
     utilizador = utilizador_atual()
     barbeiro_id = request.form.get("barbeiro_id", type=int)
-    if utilizador["papel"] == "barbeiro":
+    if not barbeiro_id:
         barbeiro_id = utilizador["id"]
-    if not barbeiro_id or not barbeiro_permitido(barbeiro_id):
+    if not pode_marcar_para(barbeiro_id):
         return "Barbeiro inválido", 403
     inicio = request.form.get("inicio", "").strip()
     servico = ""
