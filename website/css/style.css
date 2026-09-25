@@ -389,3 +389,140 @@ p {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ChairFlow product page */
+.chairflow-hero h1 {
+  letter-spacing: 0.02em;
+}
+
+.chairflow-preview {
+  margin-top: 2rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: #090b0f;
+  box-shadow: var(--shadow);
+}
+
+.cf-preview-top {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.cf-preview-top strong {
+  font-size: 1.7rem;
+}
+
+.cf-range {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.cf-arrow {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  font-size: 1.6rem;
+}
+
+.cf-calendar {
+  display: grid;
+  grid-template-columns: 72px repeat(7, minmax(92px, 1fr));
+  min-width: 820px;
+}
+
+.cf-day,
+.cf-time,
+.cf-slot {
+  min-height: 58px;
+  border-right: 1px solid rgba(255,255,255,0.09);
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+}
+
+.cf-day {
+  padding: 0.75rem 0.35rem;
+  text-align: center;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.cf-day small {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.cf-time {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0.6rem;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.cf-slot {
+  position: relative;
+  background: rgba(255,255,255,0.01);
+}
+
+.cf-booking {
+  margin: 5px;
+  min-height: 48px;
+  padding: 0.45rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0,210,255,0.55);
+  background: rgba(0, 128, 255, 0.7);
+  color: white;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.cf-booking span {
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.cf-booking-tall {
+  display: flex;
+  align-items: center;
+}
+
+.demo-note {
+  margin: 1rem 0 0;
+  font-size: 0.92rem;
+}
+
+.chairflow-cta {
+  text-align: center;
+}
+
+.chairflow-cta h2,
+.chairflow-cta p {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.chairflow-cta p {
+  max-width: 760px;
+}
+
+@media (max-width: 760px) {
+  .chairflow-preview {
+    overflow-x: auto;
+  }
+
+  .cf-preview-top {
+    justify-content: flex-start;
+    min-width: 820px;
+  }
+}
