@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Confirmar campanha — Blessed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body style="background:#080808;color:#eee;font-family:Arial,sans-serif">
+
+<main style="max-width:800px;margin:30px auto;padding:20px">
+
+    <h1>Confirmar campanha</h1>
+
+    <div style="
+        background:#151515;
+        border:1px solid #333;
+        border-radius:12px;
+        padding:20px;
+    ">
+
+        <h2>{{ campanha.nome }}</h2>
+
+        <p>
+            <strong>Canal:</strong>
+            {{ campanha.canal|upper }}
+        </p>
+
+        <p>
+            <strong>Clientes encontrados:</strong>
+            {{ total_clientes }}
+        </p>
+
+        <p>
+            <strong>Com telefone:</strong>
+            {{ total_sms }}
+        </p>
+
+        <p>
+            <strong>Com email:</strong>
+            {{ total_email }}
+        </p>
+
+        <p style="font-size:20px">
+            <strong>Total de mensagens:</strong>
+            {{ campanha.total_destinatarios }}
+        </p>
+
+        {% if campanha.barbeiro %}
+        <p>
+            <strong>Clientes de:</strong>
+            {{ campanha.barbeiro }}
+        </p>
+        {% else %}
+        <p>
+            <strong>Clientes:</strong> todos
+        </p>
+        {% endif %}
+
+        {% if campanha.assunto %}
+        <div style="margin-top:20px">
+            <strong>Assunto</strong>
+            <div style="
+                background:#090909;
+                padding:12px;
+                margin-top:6px;
+                border-radius:8px;
+            ">
+                {{ campanha.assunto }}
+            </div>
+        </div>
+        {% endif %}
+
+        <div style="margin-top:20px">
+            <strong>Mensagem</strong>
+
+            <div style="
+                white-space:pre-wrap;
+                background:#090909;
+                padding:14px;
+                margin-top:6px;
+                border-radius:8px;
+            ">{{ campanha.mensagem }}</div>
+        </div>
+
+        <div style="
+            margin-top:25px;
+            display:flex;
+            gap:12px;
+            flex-wrap:wrap;
+        ">
+
+            <form method="post"
+                  action="/admin/campanhas/{{ campanha.id }}/confirmar"
+                  onsubmit="return confirm('Confirmar esta campanha? Ainda não será enviada; ficará preparada na fila.');">
+
+                <button style="
+                    background:#236b38;
+                    color:white;
+                    border:0;
+                    padding:12px 18px;
+                    border-radius:8px;
+                    cursor:pointer;
+                    font-weight:bold;
+                ">
+                    Confirmar e preparar
+                </button>
+
+            </form>
+
+            <form method="post"
+                  action="/admin/campanhas/{{ campanha.id }}/cancelar">
+
+                <button style="
+                    background:#702323;
+                    color:white;
+                    border:0;
+                    padding:12px 18px;
+                    border-radius:8px;
+                    cursor:pointer;
+                ">
+                    Cancelar
+                </button>
+
+            </form>
+
+        </div>
+
+        <p style="margin-top:20px;color:#aaa">
+            Nenhuma mensagem será enviada nesta fase.
+        </p>
+
+    </div>
+
+</main>
+</body>
+</html>

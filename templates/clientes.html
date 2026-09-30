@@ -16,7 +16,7 @@
         @media(max-width:650px){.clientes-titulo-bloco{align-items:flex-start}.contador-clientes{min-width:112px}}
     </style>
 </head>
-<body>
+<body class="pagina-clientes">
 <div class="app app-semana">
     <div class="estrutura-semana">
         <aside class="lateral-marca">
@@ -24,10 +24,12 @@
             <nav class="menu-principal">
                 <a href="/semana" class="menu-item" title="Agenda"><span class="menu-icone">▣</span><span>Agenda</span></a>
                 <a href="/clientes" class="menu-item ativo" title="Clientes"><span class="menu-icone">♙</span><span>Clientes</span></a>
+                {% if utilizador.papel == 'gestor' %}
                 <a href="/servicos" class="menu-item" title="Serviços"><span class="menu-icone">✂</span><span>Serviços</span></a>
                 <a href="/produtos" class="menu-item" title="Produtos"><span class="menu-icone">▤</span><span>Produtos</span></a>
                 <button class="menu-item" type="button" title="Comunicações"><span class="menu-icone">✉</span><span>Comunicações</span></button>
                 <a href="/definicoes" class="menu-item" title="Definições"><span class="menu-icone">⚙</span><span>Definições</span></a>
+                {% endif %}
                 <a href="https://blessed.pjcorelabs.com/cdn-cgi/access/logout" class="menu-item" title="Terminar sessão"><span class="menu-icone">⏻</span><span>Sair</span></a>
             </nav>
         </aside>
@@ -71,10 +73,15 @@
             <section class="lista-clientes">
                 {% if clientes %}
                     {% for cliente in clientes %}
-                    <a class="cliente-card" href="/clientes/{{ cliente.id }}">
+                    <a class="cliente-card cliente-barbeiro-{{ cliente.barbeiro_username or 'sem-dono' }}" href="/clientes/{{ cliente.id }}">
                         {% if top_limite %}<span class="top-posicao">#{{ loop.index }}</span>{% endif %}
                         <div class="cliente-identidade">
                             <strong class="{% if cliente.id in clientes_falta_ativa %}cliente-nome-falta{% endif %}">{{ cliente.nome }}</strong>
+                            {% if utilizador.papel == 'gestor' %}
+                            <span class="cliente-barbeiro-label barbeiro-{{ cliente.barbeiro_username or 'sem-dono' }}">
+                                {{ cliente.barbeiro_nome or 'Sem barbeiro' }}
+                            </span>
+                            {% endif %}
                             <span>{{ cliente.telefone or 'Sem telefone' }}</span>
                             {% if cliente.email %}<small>{{ cliente.email }}</small>{% endif %}
                         </div>

@@ -449,3 +449,154 @@
     }
 }
 
+
+
+/* PAJO MULTIUSER — cliente identificado pelo seu barbeiro */
+
+.cliente-card.cliente-barbeiro-bruno {
+    border-left: 5px solid #556b2f;
+}
+
+.cliente-card.cliente-barbeiro-barbeiro2 {
+    border-left: 5px solid #d4a900;
+}
+
+.cliente-card.cliente-barbeiro-barbeiro3 {
+    border-left: 5px solid #d96b18;
+}
+
+.cliente-barbeiro-label {
+    display: inline-flex;
+    width: fit-content;
+    margin: 3px 0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.cliente-barbeiro-label.barbeiro-bruno {
+    background: #556b2f;
+    color: #fff;
+}
+
+.cliente-barbeiro-label.barbeiro-barbeiro2 {
+    background: #d4a900;
+    color: #111;
+}
+
+.cliente-barbeiro-label.barbeiro-barbeiro3 {
+    background: #d96b18;
+    color: #fff;
+}
+
+/* PAJO MULTIUSER — lista de clientes com scroll normal */
+
+html:has(body.pagina-clientes),
+body.pagina-clientes {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+body.pagina-clientes .app-semana {
+    height: auto !important;
+    min-height: 100vh !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+body.pagina-clientes .estrutura-semana {
+    height: auto !important;
+    min-height: 100vh !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+body.pagina-clientes .main-semana,
+body.pagina-clientes .clientes-main {
+    height: auto !important;
+    min-height: 100vh !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+body.pagina-clientes .lista-clientes {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* PAJO MULTIUSER — editar/apagar cliente */
+
+.cliente-acoes {
+    display:flex;
+    gap:10px;
+    margin:16px 0;
+}
+
+.cliente-acoes button {
+    min-height:40px;
+    padding:8px 14px;
+    border:0;
+    border-radius:8px;
+    font-weight:700;
+    cursor:pointer;
+}
+
+.botao-editar-cliente {
+    background:#255d32;
+    color:#fff;
+}
+
+.botao-apagar-cliente {
+    background:#7d1f1f;
+    color:#fff;
+}
+
+.editar-cliente {
+    margin:16px 0;
+    padding:16px;
+    border:1px solid #333;
+    border-radius:10px;
+    background:#111;
+}
+
+.editar-cliente form {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px;
+}
+
+.editar-cliente label {
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+}
+
+.editar-cliente input {
+    min-height:40px;
+    padding:7px 9px;
+    border:1px solid #444;
+    border-radius:7px;
+    background:#080808;
+    color:#fff;
+}
+
+.editar-cliente-botoes {
+    grid-column:1/-1;
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+}
+
+@media(max-width:700px) {
+    .cliente-acoes {
+        flex-direction:column;
+    }
+
+    .editar-cliente form {
+        grid-template-columns:1fr;
+    }
+}

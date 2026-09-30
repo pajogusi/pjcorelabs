@@ -47,6 +47,85 @@
                 <div><span>Data de nascimento</span><strong>{{ cliente.data_nascimento|data_pt }}</strong></div>
             </section>
 
+
+            <section class="cliente-acoes">
+
+                <button type="button"
+                        class="botao-editar-cliente"
+                        onclick="document.getElementById('editar-cliente').hidden=false">
+                    Editar cliente
+                </button>
+
+                <form method="post"
+                      action="/clientes/{{ cliente.id }}/apagar"
+                      onsubmit="return confirm('Apagar definitivamente este cliente e todo o histórico?');">
+
+                    <button type="submit"
+                            class="botao-apagar-cliente">
+                        Apagar cliente
+                    </button>
+
+                </form>
+
+            </section>
+
+
+            <section id="editar-cliente"
+                     class="editar-cliente"
+                     hidden>
+
+                <h2>Editar cliente</h2>
+
+                <form method="post"
+                      action="/clientes/{{ cliente.id }}/editar">
+
+                    <label>
+                        Nome
+                        <input type="text"
+                               name="nome"
+                               value="{{ cliente.nome }}"
+                               required>
+                    </label>
+
+                    <label>
+                        Telefone
+                        <input type="tel"
+                               name="telefone"
+                               value="{{ cliente.telefone }}"
+                               required>
+                    </label>
+
+                    <label>
+                        Email
+                        <input type="email"
+                               name="email"
+                               value="{{ cliente.email or '' }}">
+                    </label>
+
+                    <label>
+                        Data de nascimento
+                        <input type="date"
+                               name="data_nascimento"
+                               value="{{ cliente.data_nascimento or '' }}">
+                    </label>
+
+                    <div class="editar-cliente-botoes">
+
+                        <button type="button"
+                                onclick="document.getElementById('editar-cliente').hidden=true">
+                            Cancelar
+                        </button>
+
+                        <button type="submit">
+                            Guardar alterações
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </section>
+
             <section class="historico-cliente">
                 <div class="historico-titulo">
                     <h2>Histórico</h2>

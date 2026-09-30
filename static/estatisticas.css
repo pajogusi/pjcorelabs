@@ -1,0 +1,142 @@
+
+* {
+    box-sizing: border-box;
+}
+
+.estatisticas-main {
+    padding: 24px 28px 40px;
+    min-width: 0;
+}
+
+.estatisticas-topo {
+    margin-bottom: 24px;
+}
+
+.estatisticas-topo h1 {
+    margin: 0;
+    font-size: 34px;
+}
+
+.estatisticas-topo p {
+    margin: 6px 0 0;
+    color: #888;
+}
+
+.estatisticas-resumo {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.estatisticas-resumo article {
+    min-height: 130px;
+    padding: 20px;
+    border: 1px solid #2a2a2a;
+    border-radius: 14px;
+    background: #121212;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.estatisticas-resumo span {
+    color: #888;
+    font-size: 14px;
+}
+
+.estatisticas-resumo strong {
+    font-size: 42px;
+    line-height: 1;
+}
+
+@media (max-width: 900px) {
+    .estatisticas-resumo {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 550px) {
+    .estatisticas-resumo {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* PAJO HISTORICO CORTES 20260916 */
+
+.historico-cortes {
+    margin-top: 28px;
+}
+
+.historico-cortes h2 {
+    margin: 0 0 14px;
+    font-size: 22px;
+}
+
+.historico-cortes-lista {
+    display: grid;
+    gap: 10px;
+}
+
+.historico-cortes-lista article {
+    min-height: 58px;
+    padding: 0 18px;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    background: #121212;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.historico-cortes-lista span {
+    color: #bbb;
+    font-weight: 700;
+}
+
+.historico-cortes-lista strong {
+    font-size: 24px;
+}
+
+/* PAJO MULTIUSER — selector de estatísticas */
+
+.estatisticas-topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.estatisticas-barbeiro {
+    min-width: 180px;
+}
+
+.estatisticas-barbeiro label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.estatisticas-barbeiro select {
+    width: 100%;
+    margin-top: 5px;
+    min-height: 38px;
+    padding: 6px 9px;
+    border: 1px solid #35485d;
+    border-radius: 8px;
+    background: #111820;
+    color: #fff;
+}
+
+@media (max-width: 700px) {
+    .estatisticas-topo {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .estatisticas-barbeiro {
+        width: 100%;
+    }
+}

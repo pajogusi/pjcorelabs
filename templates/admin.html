@@ -1,0 +1,1232 @@
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin — Blessed</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='sidebar.css') }}">
+
+<style>
+body {
+    background:#090909;
+    color:#eee;
+}
+
+.admin-page {
+    max-width:1400px;
+    margin:auto;
+    padding:22px;
+}
+
+.admin-topo {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+    margin-bottom:22px;
+}
+
+.admin-topo h1 {
+    margin:0;
+}
+
+.admin-voltar {
+    color:#fff;
+    text-decoration:none;
+    padding:9px 14px;
+    border:1px solid #444;
+    border-radius:8px;
+}
+
+.admin-resumo {
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:12px;
+    margin-bottom:22px;
+}
+
+.admin-resumo article {
+    padding:16px;
+    border:1px solid #303030;
+    border-radius:10px;
+    background:#111;
+}
+
+.admin-resumo strong {
+    display:block;
+    font-size:28px;
+}
+
+.admin-caixa {
+    padding:18px;
+    margin-bottom:20px;
+    border:1px solid #303030;
+    border-radius:12px;
+    background:#101010;
+}
+
+.admin-novo {
+    display:grid;
+    grid-template-columns:2fr 1fr 1fr auto;
+    gap:10px;
+}
+
+input,
+select {
+    min-height:38px;
+    padding:7px 9px;
+    border:1px solid #444;
+    border-radius:7px;
+    background:#080808;
+    color:#fff;
+}
+
+button {
+    min-height:38px;
+    padding:7px 13px;
+    border:0;
+    border-radius:7px;
+    cursor:pointer;
+    font-weight:700;
+}
+
+.admin-guardar {
+    background:#255d32;
+    color:#fff;
+}
+
+.admin-apagar {
+    background:#7d1f1f;
+    color:#fff;
+}
+
+.utilizador-card {
+    padding:14px;
+    margin:10px 0;
+    border:1px solid #303030;
+    border-radius:10px;
+    background:#151515;
+}
+
+.utilizador-form {
+    display:grid;
+    grid-template-columns:
+        minmax(140px,2fr)
+        minmax(100px,1fr)
+        minmax(100px,1fr)
+        repeat(4,auto)
+        auto;
+    gap:9px;
+    align-items:center;
+}
+
+.check {
+    display:flex;
+    align-items:center;
+    gap:5px;
+    font-size:12px;
+    white-space:nowrap;
+}
+
+.utilizador-info {
+    margin-top:8px;
+    color:#aaa;
+    font-size:12px;
+}
+
+.sms-ok {
+    color:#69d681;
+}
+
+.sms-off {
+    color:#e5a15d;
+}
+
+@media(max-width:900px) {
+    .admin-resumo {
+        grid-template-columns:1fr;
+    }
+
+    .admin-novo,
+    .utilizador-form {
+        grid-template-columns:1fr;
+    }
+
+    .check {
+        min-height:34px;
+    }
+}
+</style>
+</head>
+
+<body class="pagina-admin">
+
+<div class="admin-page">
+
+    <header class="admin-topo">
+        <div>
+            <h1>Admin</h1>
+            <p>Gestão da instalação Blessed</p>
+        </div>
+
+        <a class="admin-voltar" href="/semana">
+            Voltar à agenda
+        </a>
+    </header>
+
+    <section class="admin-resumo">
+        <article>
+            <span>Utilizadores</span>
+            <strong>{{ utilizadores|length }}</strong>
+        </article>
+
+        <article>
+            <span>Clientes</span>
+            <strong>{{ total_clientes }}</strong>
+        </article>
+
+        <article>
+            <span>Marcações</span>
+            <strong>{{ total_marcacoes }}</strong>
+        </article>
+    </section>
+
+
+    
+<nav id="admin-tabs" class="admin-tabs">
+    <button type="button" data-tab="utilizadores" class="ativo">Utilizadores</button>
+    <button type="button" data-tab="clientes">Clientes</button>
+    <button type="button" data-tab="servicos">Serviços</button>
+    <button type="button" data-tab="produtos">Produtos</button>
+    <button type="button" data-tab="comunicacoes">Comunicações</button>
+    <button type="button" data-tab="sistema">Sistema</button>
+</nav>
+
+<section class="admin-caixa admin-tab-painel" data-admin-tab="utilizadores">
+
+        <h2>Novo barbeiro</h2>
+
+        <form class="admin-novo"
+              method="post"
+              action="/admin/utilizadores/novo">
+
+            <input
+                name="nome"
+                placeholder="Nome"
+                required>
+
+            <input
+                name="username"
+                placeholder="Username"
+                required>
+
+            <input
+                type="password"
+                name="password"
+                placeholder="Password inicial"
+                required>
+
+            <button class="admin-guardar">
+                Criar
+            </button>
+
+        </form>
+
+    </section>
+
+
+    <section class="admin-caixa admin-tab-painel" data-admin-tab="utilizadores">
+
+        <h2>Utilizadores</h2>
+
+        {% for u in utilizadores %}
+
+        <article class="utilizador-card">
+
+            <form class="utilizador-form"
+                  method="post"
+                  action="/admin/utilizadores/{{ u.id }}/guardar">
+
+                <input
+                    name="nome"
+                    value="{{ u.nome }}"
+                    required>
+
+                <input
+                    name="username"
+                    value="{{ u.username }}"
+                    required>
+
+                <input
+                    type="password"
+                    name="password"
+                    placeholder="Nova password">
+
+                <label class="check">
+                    <input
+                        type="checkbox"
+                        name="ativo"
+                        value="1"
+                        {% if u.ativo %}checked{% endif %}
+                        {% if u.e_admin %}disabled{% endif %}>
+                    Ativo
+                </label>
+
+                <label class="check">
+                    <input
+                        type="checkbox"
+                        name="pode_consultar_agendas"
+                        value="1"
+                        {% if u.pode_consultar_agendas %}checked{% endif %}>
+                    Ver agendas
+                </label>
+
+                <label class="check">
+                    <input
+                        type="checkbox"
+                        name="pode_marcar_outros"
+                        value="1"
+                        {% if u.pode_marcar_outros %}checked{% endif %}>
+                    Marcar outros
+                </label>
+
+                <label class="check">
+                    <input
+                        type="checkbox"
+                        name="sms_autorizado"
+                        value="1"
+                        {% if u.sms_autorizado %}checked{% endif %}>
+                    SMS
+                </label>
+
+                {% if not u.e_admin %}
+
+                <label class="check">
+                    <input
+                        type="checkbox"
+                        name="email_ativo"
+                        value="1"
+                        {% if u.email_ativo %}checked{% endif %}>
+                    Email ativo
+                </label>
+
+                <label class="check">
+                    <input
+                        type="checkbox"
+                        name="email_confirmacao"
+                        value="1"
+                        {% if u.email_confirmacao %}checked{% endif %}>
+                    Confirmação por email
+                </label>
+
+                <label class="check">
+                    <input
+                        type="checkbox"
+                        name="email_lembrete_24h"
+                        value="1"
+                        {% if u.email_lembrete_24h %}checked{% endif %}>
+                    Lembrete 24h
+                </label>
+
+                <label class="check">
+                    <input
+                        type="checkbox"
+                        name="email_lembrete_1h"
+                        value="1"
+                        {% if u.email_lembrete_1h %}checked{% endif %}>
+                    Lembrete 1h
+                </label>
+
+                {% endif %}
+
+                <button class="admin-guardar">
+                    Guardar
+                </button>
+
+            </form>
+
+            <div class="utilizador-info">
+
+                {% if u.e_admin %}
+                    🛡 Administrador ·
+                {% elif u.papel == 'gestor' %}
+                    Gestor ·
+                {% else %}
+                    Barbeiro ·
+                {% endif %}
+
+                {{ u.total_clientes }} clientes ·
+                {{ u.total_marcacoes }} marcações ·
+
+                {% if u.sms_autorizado and u.sms_provider %}
+                    <span class="sms-ok">
+                        SMS ativo — {{ u.sms_provider }}
+                    </span>
+                {% elif u.sms_autorizado %}
+                    <span class="sms-off">
+                        SMS autorizado, fornecedor não configurado
+                    </span>
+                {% else %}
+                    <span class="sms-off">
+                        SMS bloqueado
+                    </span>
+                {% endif %}
+
+            </div>
+
+            {% if not u.e_admin %}
+
+            <form method="post"
+                  action="/admin/utilizadores/{{ u.id }}/apagar"
+                  style="margin-top:10px"
+                  onsubmit="return confirm('Apagar definitivamente este utilizador?');">
+
+                <button class="admin-apagar">
+                    Apagar definitivamente
+                </button>
+
+            </form>
+
+            {% endif %}
+
+        </article>
+
+        {% endfor %}
+
+    </section>
+
+
+
+
+
+
+
+
+
+<section class="admin-caixa admin-tab-painel" id="admin-campanhas" data-admin-tab="comunicacoes">
+
+    <h2>Campanhas manuais</h2>
+
+    <p style="opacity:.75">
+        Natal, Ano Novo, férias ou mensagens ocasionais.
+        O envio só acontece quando for explicitamente confirmado.
+    </p>
+
+    <form method="post"
+          action="/admin/campanhas/preparar"
+          class="utilizador-card">
+
+        <label>
+            Tipo
+            <select name="tipo"
+                    id="campanha-tipo"
+                    required>
+                <option value="natal">Natal</option>
+                <option value="ano_novo">Ano Novo</option>
+                <option value="ferias">Férias / Encerramento</option>
+                <option value="livre">Mensagem livre</option>
+            </select>
+        </label>
+
+        <label>
+            Canal
+            <select name="canal"
+                    id="campanha-canal"
+                    required>
+                <option value="sms">SMS</option>
+                <option value="email">Email</option>
+                <option value="ambos">SMS + Email</option>
+            </select>
+        </label>
+
+        <label>
+            Destinatários
+            <select name="barbeiro_id">
+
+                <option value="todos">
+                    Todos os clientes
+                </option>
+
+                {% for u in utilizadores %}
+                    {% if not u.e_admin and u.ativo %}
+                    <option value="{{ u.id }}">
+                        Clientes de {{ u.nome }}
+                    </option>
+                    {% endif %}
+                {% endfor %}
+
+            </select>
+        </label>
+
+        <label style="display:block;margin-top:12px">
+            Assunto do email
+            <input
+                type="text"
+                name="assunto"
+                id="campanha-assunto"
+                value="Boas Festas — Blessed Barbearia"
+                style="width:100%;box-sizing:border-box;margin-top:5px">
+        </label>
+
+        <label style="display:block;margin-top:12px">
+            Mensagem
+
+            <textarea
+                name="mensagem"
+                id="campanha-mensagem"
+                rows="7"
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    margin-top:5px;
+                    padding:10px;
+                    background:#080808;
+                    color:#fff;
+                    border:1px solid #444;
+                    border-radius:8px;
+                    resize:vertical;
+                "
+                required>Feliz Natal e Boas Festas!
+
+A Blessed Barbearia deseja a todos os seus clientes um excelente Natal.
+
+Obrigado pela confiança.</textarea>
+
+        </label>
+
+        <button class="admin-guardar"
+                type="submit"
+                style="margin-top:14px">
+            Pré-visualizar campanha
+        </button>
+
+    </form>
+
+
+
+    <h3 style="margin-top:24px">Campanhas recentes</h3>
+
+    {% for campanha in campanhas %}
+
+    <article class="utilizador-card" style="margin-top:12px">
+
+        <strong>{{ campanha.nome }}</strong>
+
+        <div style="margin-top:6px;opacity:.8">
+            Canal: {{ campanha.canal|upper }}
+            · Estado: {{ campanha.estado }}
+            · {{ campanha.processados }} / {{ campanha.total_destinatarios }}
+        </div>
+
+        <div style="margin-top:6px;opacity:.7">
+            Lote: {{ campanha.tamanho_lote }}
+            · Intervalo: {{ campanha.intervalo_segundos }}s
+            · Máx/hora: {{ campanha.max_por_hora }}
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+
+            {% if campanha.estado == 'confirmada' %}
+            <form method="post"
+                  action="/admin/campanhas/{{ campanha.id }}/iniciar">
+                <button class="admin-guardar">
+                    Iniciar
+                </button>
+            </form>
+            {% endif %}
+
+            {% if campanha.estado == 'a_enviar' %}
+            <form method="post"
+                  action="/admin/campanhas/{{ campanha.id }}/pausar">
+                <button class="admin-apagar">
+                    Pausar
+                </button>
+            </form>
+
+            <form method="post"
+                  action="/admin/campanhas/{{ campanha.id }}/simular-lote">
+                <button class="admin-guardar">
+                    Simular próximo lote
+                </button>
+            </form>
+            {% endif %}
+
+            {% if campanha.estado == 'pausada' %}
+            <form method="post"
+                  action="/admin/campanhas/{{ campanha.id }}/retomar">
+                <button class="admin-guardar">
+                    Retomar
+                </button>
+            </form>
+            {% endif %}
+
+        </div>
+
+    </article>
+
+    {% else %}
+
+    <p style="opacity:.7">
+        Ainda não existem campanhas.
+    </p>
+
+    {% endfor %}
+
+</section>
+
+
+<script>
+(() => {
+    const tipo = document.getElementById('campanha-tipo');
+    const assunto = document.getElementById('campanha-assunto');
+    const mensagem = document.getElementById('campanha-mensagem');
+
+    if (!tipo || !assunto || !mensagem) return;
+
+    const modelos = {
+        natal: {
+            assunto: 'Boas Festas — Blessed Barbearia',
+            mensagem:
+`Feliz Natal e Boas Festas!
+
+A Blessed Barbearia deseja a todos os seus clientes um excelente Natal.
+
+Obrigado pela confiança.`
+        },
+
+        ano_novo: {
+            assunto: 'Feliz Ano Novo — Blessed Barbearia',
+            mensagem:
+`Feliz Ano Novo!
+
+A Blessed Barbearia deseja a todos os seus clientes um excelente ano novo.
+
+Obrigado pela confiança.`
+        },
+
+        ferias: {
+            assunto: 'Informação — Blessed Barbearia',
+            mensagem:
+`Informamos os nossos clientes de que a Blessed Barbearia estará encerrada para férias.
+
+Altere este texto com as datas antes de enviar.
+
+Obrigado pela compreensão.`
+        },
+
+        livre: {
+            assunto: '',
+            mensagem: ''
+        }
+    };
+
+    tipo.addEventListener('change', () => {
+        const m = modelos[tipo.value];
+
+        if (!m) return;
+
+        assunto.value = m.assunto;
+        mensagem.value = m.mensagem;
+    });
+})();
+</script>
+
+
+<section class="admin-caixa admin-tab-painel" id="admin-modelos" data-admin-tab="comunicacoes">
+
+    <h2>Modelos de mensagens</h2>
+
+    <p style="opacity:.75">
+        Podes alterar os textos usados nos SMS e emails.
+        Variáveis disponíveis:
+        <strong>{cliente}</strong>,
+        <strong>{barbeiro}</strong>,
+        <strong>{data}</strong>,
+        <strong>{hora}</strong>,
+        <strong>{servico}</strong>.
+    </p>
+
+    {% for modelo in modelos_comunicacao %}
+
+    <article class="utilizador-card"
+             style="margin-top:16px">
+
+        <h3>{{ modelo.nome }}</h3>
+
+        <form method="post"
+              action="/admin/modelos/{{ modelo.id }}/guardar">
+
+            {% if modelo.canal == 'email' %}
+            <label style="display:block;margin-bottom:10px">
+                Assunto
+                <input
+                    type="text"
+                    name="assunto"
+                    value="{{ modelo.assunto or '' }}"
+                    style="width:100%;margin-top:5px">
+            </label>
+            {% endif %}
+
+            <label style="display:block">
+                Conteúdo
+
+                <textarea
+                    name="conteudo"
+                    rows="{% if modelo.canal == 'email' %}9{% else %}4{% endif %}"
+                    style="
+                        width:100%;
+                        box-sizing:border-box;
+                        margin-top:5px;
+                        padding:10px;
+                        border-radius:8px;
+                        background:#080808;
+                        color:#fff;
+                        border:1px solid #444;
+                        resize:vertical;
+                    "
+                    required>{{ modelo.conteudo }}</textarea>
+            </label>
+
+            <div style="
+                display:flex;
+                align-items:center;
+                gap:12px;
+                margin-top:10px;
+                flex-wrap:wrap;
+            ">
+
+                <label class="check">
+                    <input
+                        type="checkbox"
+                        name="ativo"
+                        value="1"
+                        {% if modelo.ativo %}checked{% endif %}>
+                    Modelo ativo
+                </label>
+
+                <button class="admin-guardar"
+                        type="submit">
+                    Guardar
+                </button>
+
+            </div>
+
+        </form>
+
+        <form
+            method="post"
+            action="/admin/modelos/{{ modelo.id }}/repor"
+            style="margin-top:8px"
+            onsubmit="return confirm('Repor o texto padrão deste modelo?');">
+
+            <button type="submit"
+                    style="
+                        border:1px solid #555;
+                        background:#222;
+                        color:#ddd;
+                        padding:7px 12px;
+                        border-radius:7px;
+                        cursor:pointer;
+                    ">
+                Repor padrão
+            </button>
+
+        </form>
+
+    </article>
+
+    {% endfor %}
+
+</section>
+
+
+<section class="admin-caixa admin-tab-painel" id="admin-servicos" data-admin-tab="servicos">
+
+    <h2>Serviços</h2>
+
+    <h3>Novo serviço</h3>
+
+    <form class="admin-novo"
+          method="post"
+          action="/admin/servicos/novo">
+
+        <input name="nome"
+               placeholder="Nome do serviço"
+               required>
+
+        <input name="duracao"
+               type="number"
+               min="5"
+               step="5"
+               value="30"
+               placeholder="Minutos"
+               required>
+
+        <input name="preco"
+               placeholder="Preço £"
+               inputmode="decimal"
+               required>
+
+        <button class="admin-guardar">
+            Criar
+        </button>
+
+        <input name="descricao"
+               placeholder="Descrição"
+               style="grid-column:1/-1">
+
+    </form>
+
+    <div style="margin-top:22px">
+
+    {% for servico in servicos %}
+
+        <article class="utilizador-card">
+
+            <form class="utilizador-form"
+                  method="post"
+                  action="/admin/servicos/{{ servico.id }}/guardar">
+
+                <input name="nome"
+                       value="{{ servico.nome }}"
+                       required>
+
+                <input name="duracao"
+                       type="number"
+                       min="5"
+                       step="5"
+                       value="{{ servico.duracao_minutos }}"
+                       required>
+
+                <input name="preco"
+                       value="{{ '%.2f'|format(servico.preco_pence / 100) }}"
+                       inputmode="decimal"
+                       required>
+
+                <label class="check">
+                    <input type="checkbox"
+                           name="ativo"
+                           value="1"
+                           {% if servico.ativo %}checked{% endif %}>
+                    Ativo
+                </label>
+
+                <button class="admin-guardar">
+                    Guardar
+                </button>
+
+                <input name="descricao"
+                       value="{{ servico.descricao or '' }}"
+                       placeholder="Descrição"
+                       style="grid-column:1/-1">
+
+            </form>
+
+            <form method="post"
+                  action="/admin/servicos/{{ servico.id }}/apagar"
+                  style="margin-top:10px"
+                  onsubmit="return confirm('Apagar definitivamente este serviço?');">
+
+                <button class="admin-apagar">
+                    Apagar serviço
+                </button>
+
+            </form>
+
+        </article>
+
+    {% endfor %}
+
+    </div>
+
+</section>
+
+
+<section class="admin-caixa admin-tab-painel" id="admin-produtos" data-admin-tab="produtos">
+
+    <h2>Produtos</h2>
+
+    <h3>Novo produto</h3>
+
+    <form class="admin-novo"
+          method="post"
+          action="/admin/produtos/novo">
+
+        <input
+            name="nome"
+            placeholder="Nome do produto"
+            required>
+
+        <input
+            name="preco"
+            placeholder="Preço £"
+            inputmode="decimal"
+            required>
+
+        <input
+            name="imagem"
+            placeholder="Imagem opcional">
+
+        <button class="admin-guardar">
+            Criar
+        </button>
+
+        <input
+            name="descricao"
+            placeholder="Descrição"
+            style="grid-column:1/-1">
+
+    </form>
+
+
+    <div style="margin-top:22px">
+
+    {% for produto in produtos %}
+
+        <article class="utilizador-card">
+
+            <form
+                class="utilizador-form"
+                method="post"
+                action="/admin/produtos/{{ produto.id }}/guardar">
+
+                <input
+                    name="nome"
+                    value="{{ produto.nome }}"
+                    required>
+
+                <input
+                    name="preco"
+                    value="{{ '%.2f'|format(produto.preco_pence / 100) }}"
+                    inputmode="decimal"
+                    required>
+
+                <input
+                    name="imagem"
+                    value="{{ produto.imagem or '' }}"
+                    placeholder="Imagem">
+
+                <label class="check">
+                    <input
+                        type="checkbox"
+                        name="ativo"
+                        value="1"
+                        {% if produto.ativo %}checked{% endif %}>
+                    Ativo
+                </label>
+
+                <button class="admin-guardar">
+                    Guardar
+                </button>
+
+                <input
+                    name="descricao"
+                    value="{{ produto.descricao or '' }}"
+                    placeholder="Descrição"
+                    style="grid-column:1/-1">
+
+            </form>
+
+            <form
+                method="post"
+                action="/admin/produtos/{{ produto.id }}/apagar"
+                style="margin-top:10px"
+                onsubmit="return confirm('Apagar definitivamente este produto?');">
+
+                <button class="admin-apagar">
+                    Apagar produto
+                </button>
+
+            </form>
+
+        </article>
+
+    {% else %}
+
+        <p>Não existem produtos registados.</p>
+
+    {% endfor %}
+
+    </div>
+
+</section>
+
+
+<section class="admin-caixa admin-tab-painel"
+         id="admin-clientes"
+         data-admin-tab="clientes">
+
+    <h2>Clientes</h2>
+
+    <p style="opacity:.75">
+        {{ clientes_admin|length }} clientes registados na instalação.
+    </p>
+
+    <div style="
+        display:grid;
+        gap:10px;
+        margin-top:16px;
+    ">
+
+    {% for cliente in clientes_admin %}
+
+        <article class="utilizador-card">
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:flex-start;
+                gap:15px;
+                flex-wrap:wrap;
+            ">
+
+                <div>
+                    <strong style="font-size:17px">
+                        {{ cliente.nome }}
+                    </strong>
+
+                    <div style="margin-top:6px;opacity:.8">
+                        {{ cliente.telefone or 'Sem telefone' }}
+
+                        {% if cliente.email %}
+                            · {{ cliente.email }}
+                        {% endif %}
+                    </div>
+
+                    <div style="margin-top:6px;opacity:.7">
+                        Barbeiro:
+                        <strong>
+                            {{ cliente.barbeiro or 'Sem responsável' }}
+                        </strong>
+
+                        · {{ cliente.total_marcacoes }}
+                        {% if cliente.total_marcacoes == 1 %}
+                            marcação
+                        {% else %}
+                            marcações
+                        {% endif %}
+                    </div>
+                </div>
+
+                <a href="/clientes/{{ cliente.id }}"
+                   class="admin-guardar"
+                   style="
+                       text-decoration:none;
+                       display:inline-block;
+                   ">
+                    Abrir ficha
+                </a>
+
+            </div>
+
+        </article>
+
+    {% else %}
+
+        <p>Não existem clientes.</p>
+
+    {% endfor %}
+
+    </div>
+
+</section>
+
+<section class="admin-caixa admin-tab-painel"
+         id="admin-sistema"
+         data-admin-tab="sistema">
+
+    <h2>Sistema</h2>
+
+    <div class="utilizador-card">
+
+        <h3>Base de dados</h3>
+
+        <div style="opacity:.8">
+            Ficheiro:
+            <strong>blessed.db</strong>
+        </div>
+
+        <div style="margin-top:6px;opacity:.8">
+            Tamanho:
+            <strong>{{ sistema_admin.db_tamanho_mb }} MB</strong>
+        </div>
+
+        <div style="margin-top:6px;opacity:.8">
+            Clientes:
+            <strong>{{ total_clientes }}</strong>
+            · Marcações:
+            <strong>{{ total_marcacoes }}</strong>
+        </div>
+
+        <form method="post"
+              action="/admin/sistema/backup"
+              style="margin-top:15px">
+
+            <button class="admin-guardar">
+                Criar backup agora
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <div class="utilizador-card"
+         style="margin-top:15px">
+
+        <h3>Últimos backups</h3>
+
+        {% for backup in backups_admin %}
+
+            <div style="
+                padding:8px 0;
+                border-bottom:1px solid #292929;
+            ">
+                {{ backup.nome }}
+                <span style="opacity:.65">
+                    · {{ backup.tamanho_mb }} MB
+                </span>
+            </div>
+
+        {% else %}
+
+            <p style="opacity:.7">
+                Ainda não existem backups nesta área.
+            </p>
+
+        {% endfor %}
+
+    </div>
+
+
+    <div class="utilizador-card"
+         style="margin-top:15px">
+
+        <h3>Ambiente</h3>
+
+        <div style="opacity:.8">
+            Blessed Multiuser
+        </div>
+
+        <div style="margin-top:6px;opacity:.8">
+            Porta: <strong>5003</strong>
+        </div>
+
+        <div style="margin-top:6px;opacity:.8">
+            SMS de teste:
+            <strong>bloqueados</strong>
+        </div>
+
+    </div>
+
+</section>
+
+</div>
+
+
+
+<style>
+.admin-tabs{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin:0 0 20px;
+    padding:8px;
+    border:1px solid #2b2b2b;
+    border-radius:12px;
+    background:#111;
+    position:sticky;
+    top:0;
+    z-index:50;
+}
+
+.admin-tabs button{
+    border:1px solid #3a3a3a;
+    background:#1a1a1a;
+    color:#ddd;
+    padding:9px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:700;
+}
+
+.admin-tabs button.ativo{
+    background:#2d5f3b;
+    border-color:#3f8250;
+    color:#fff;
+}
+
+.admin-tab-painel{
+    display:none;
+}
+
+.admin-tab-painel.admin-tab-visivel{
+    display:block;
+}
+
+@media(max-width:700px){
+    .admin-tabs{
+        position:static;
+    }
+
+    .admin-tabs button{
+        flex:1 1 calc(50% - 8px);
+    }
+}
+</style>
+
+<script>
+(() => {
+    const botoes = [...document.querySelectorAll('#admin-tabs button')];
+    const paineis = [...document.querySelectorAll('.admin-tab-painel')];
+
+    if (!botoes.length || !paineis.length) return;
+
+    function mostrar(nome) {
+        botoes.forEach(btn => {
+            btn.classList.toggle('ativo', btn.dataset.tab === nome);
+        });
+
+        paineis.forEach(painel => {
+            painel.classList.toggle(
+                'admin-tab-visivel',
+                painel.dataset.adminTab === nome
+            );
+        });
+
+        try {
+            localStorage.setItem('blessedAdminTab', nome);
+        } catch (_) {}
+    }
+
+    botoes.forEach(btn => {
+        btn.addEventListener('click', () => mostrar(btn.dataset.tab));
+    });
+
+    let inicial = 'utilizadores';
+
+    if (location.hash === '#admin-clientes') inicial = 'clientes';
+    else if (location.hash === '#admin-sistema') inicial = 'sistema';
+    else if (location.hash === '#admin-produtos') inicial = 'produtos';
+    else if (location.hash === '#admin-servicos') inicial = 'servicos';
+    else if (
+        location.hash === '#admin-modelos' ||
+        location.hash === '#admin-campanhas'
+    ) inicial = 'comunicacoes';
+    else {
+        try {
+            const guardada = localStorage.getItem('blessedAdminTab');
+            if (guardada) inicial = guardada;
+        } catch (_) {}
+    }
+
+    mostrar(inicial);
+})();
+</script>
+
+</body>
+</html>

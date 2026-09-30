@@ -4,12 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Blessed</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260920-altura2') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='sidebar.css', v='20260911-5') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='marcacao.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='marcacao.css', v='20260920-altura2') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='screensaver.css') }}">
 </head>
-<body>
+<body class="pagina-semana">
 <div class="app app-semana">
     <div class="estrutura-semana">
         <aside class="lateral-marca">
@@ -17,44 +17,82 @@
             <nav class="menu-principal">
                 <a href="/semana" class="menu-item ativo" title="Agenda"><span class="menu-icone">▣</span><span>Agenda</span></a>
                 <a href="/clientes" class="menu-item" title="Clientes"><span class="menu-icone">♙</span><span>Clientes</span></a>
+                <a href="/estatisticas" class="menu-item" title="Estatísticas"><span class="menu-icone">📊</span><span>Estatísticas</span></a>
+                {% if utilizador.papel == 'gestor' %}
                 <a href="/servicos" class="menu-item" title="Serviços"><span class="menu-icone">✂</span><span>Serviços</span></a>
                 <a href="/produtos" class="menu-item" title="Produtos"><span class="menu-icone">▤</span><span>Produtos</span></a>
                 <button class="menu-item" type="button" title="Comunicações"><span class="menu-icone">✉</span><span>Comunicações</span></button>
                 <a href="/definicoes" class="menu-item" title="Definições"><span class="menu-icone">⚙</span><span>Definições</span></a>
+                {% endif %}
                 <button class="menu-item" type="button" id="refresh-forcado" title="Atualizar"><span class="menu-icone">↻</span><span>Atualizar</span></button>
                 <a href="/logout" class="menu-item" title="Terminar sessão"><span class="menu-icone">⏻</span><span>Sair</span></a>
+                {% if utilizador.e_admin %}
+                <a href="/admin" class="menu-item" title="Admin">
+                    <span class="menu-icone">🛡</span>
+                    <span>Admin</span>
+                </a>
+                {% endif %}
             </nav>
 
-            <section class="meses-rapidos">
-                <div class="meses-rapidos-titulo">Meses</div>
+            
+            <div class="meses-dropdown">
+                <label for="mesSelecionado">Mês:</label>
+                <select id="mesSelecionado"
+                        onchange="if(this.value) window.location.href=this.value">
+                    {% for mes in meses_rapidos %}
+                    <option
+                        value="/semana?data={{ mes.data }}{% if barbeiro_selecionado is none %}&barbeiro=todos{% else %}&barbeiro={{ barbeiro_selecionado }}{% endif %}"
+                        {% if mes.ativo %}selected{% endif %}>
+                        {{ mes.nome }} {{ mes.ano }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
 
-                {% for mes in meses_rapidos %}
-                <a
-                    href="/semana?data={{ mes.data }}"
-                    class="mes-rapido {% if mes.ativo %}ativo{% endif %}"
-                    title="Abrir {{ mes.nome }} {{ mes.ano }}">
-                    <span>{{ mes.nome }}</span>
-                    <small>{{ mes.ano }}</small>
-                </a>
-                {% endfor %}
-            </section>
 
-            {% if utilizador.papel == 'gestor' or pode_consultar_outros %}
+            {% if utilizador.papel == 'gestor' %}
             <form method="get" style="margin:0 0 12px">
                 <input type="hidden" name="data" value="{{ inicio_semana.isoformat() }}">
                 <label>Agenda: <select name="barbeiro" onchange="this.form.submit()">
-                    <option value="">Todas</option>
-                    {% for barbeiro in barbeiros %}<option value="{{ barbeiro.id }}" {% if barbeiro_selecionado == barbeiro.id %}selected{% endif %}>{{ barbeiro.nome }}</option>{% endfor %}
+                    {% for barbeiro in barbeiros %}
+                        {% if barbeiro.username == 'bruno' %}
+                        <option value="{{ barbeiro.id }}"
+                                class="barbeiro-opcao barbeiro-{{ barbeiro.username }}"
+                                {% if barbeiro_selecionado == barbeiro.id %}selected{% endif %}>
+                            {{ barbeiro.nome }}
+                        </option>
+                        {% endif %}
+                    {% endfor %}
+
+                    <option value="todos" {% if barbeiro_selecionado is none %}selected{% endif %}>Todas</option>
+
+                    {% for barbeiro in barbeiros %}
+                        {% if barbeiro.username != 'bruno' %}
+                        <option value="{{ barbeiro.id }}"
+                                class="barbeiro-opcao barbeiro-{{ barbeiro.username }}"
+                                {% if barbeiro_selecionado == barbeiro.id %}selected{% endif %}>
+                            {{ barbeiro.nome }}
+                        </option>
+                        {% endif %}
+                    {% endfor %}
                 </select></label>
             </form>
+
+            <div class="legenda-barbeiros">
+                {% for barbeiro in barbeiros %}
+                <span class="legenda-barbeiro barbeiro-{{ barbeiro.username }}">
+                    <span class="legenda-cor"></span>{{ barbeiro.nome }}
+                </span>
+                {% endfor %}
+            </div>
             {% endif %}
         </aside>
 
         <main class="main-semana">
-            <section class="titulo-semana">
-                <a href="/semana?data={{ semana_anterior.isoformat() }}" class="seta-semana" title="Semana anterior">‹</a>
-                <div class="identificacao-semana"><h1>Semana</h1><span>{{ inicio_semana.strftime('%d/%m') }} — {{ fim_semana.strftime('%d/%m/%Y') }}</span></div>
-                <a href="/semana?data={{ semana_seguinte.isoformat() }}" class="seta-semana" title="Semana seguinte">›</a>
+            <section class="titulo-semana {% if semana_atual %}semana-atual{% endif %}">
+                <a href="/semana?data={{ semana_anterior.isoformat() }}{% if barbeiro_selecionado %}&barbeiro={{ barbeiro_selecionado }}{% endif %}" class="seta-semana" title="Semana anterior">‹</a>
+                <div class="identificacao-semana"><h1>Semana</h1><span>{{ inicio_semana.strftime('%d/%m') }} — {{ fim_semana.strftime('%d/%m/%Y') }} ({{ total_semana }})</span></div>
+                <a href="/semana?data={{ semana_seguinte.isoformat() }}{% if barbeiro_selecionado %}&barbeiro={{ barbeiro_selecionado }}{% endif %}" class="seta-semana" title="Semana seguinte">›</a>
             </section>
 
             {% if clientes_inativos %}
@@ -68,10 +106,10 @@
             </a>
             {% endif %}
 
-            <section class="agenda-semanal">
+            <section class="agenda-semanal {% if barbeiro_selecionado is none %}agenda-todos{% endif %}">
                 <div class="agenda-cabecalho">
                     <div class="cabecalho-hora"></div>
-                    {% for dia in dias %}<div class="agenda-dia"><strong>{{ dia.nome }}</strong><span>{{ dia.data[8:10] }}/{{ dia.data[5:7] }}</span></div>{% endfor %}
+                    {% for dia in dias %}<div class="agenda-dia"><strong>{{ dia.nome }} ({{ dia.total }})</strong><span>{{ dia.data[8:10] }}/{{ dia.data[5:7] }}</span></div>{% endfor %}
                 </div>
                 <div class="agenda-corpo">
                     {% for hora in horas_grelha %}
@@ -80,7 +118,7 @@
                         {% for dia in dias %}
                         <div class="celula-agenda" data-data="{{ dia.data }}" data-hora="{{ hora }}" role="button" tabindex="0" title="Nova marcação">
                             {% for m in dia.marcacoes %}{% if m.hora_base == hora %}
-                            <div class="marcacao-grelha marcacao-posicionada estado-{{ m.estado }}"
+                            <div class="marcacao-grelha marcacao-posicionada estado-{{ m.estado }} barbeiro-id-{{ m.barbeiro_id }} barbeiro-{{ m.barbeiro_username }}"
                                  style="--deslocamento: {{ m.deslocamento }}; --duracao: {{ m.duracao }};"
                                  data-marcacao-id="{{ m.id }}" data-nome="{{ m.nome }}"
                                  data-hora-real="{{ m.hora }}" data-data-real="{{ m.inicio[:10] }}"
@@ -91,7 +129,13 @@
                                       style="--conflito-inicio: {{ faixa.inicio }}; --conflito-duracao: {{ faixa.duracao }}; --marcacao-duracao: {{ m.duracao }};"
                                       aria-hidden="true"></span>
                                 {% endfor %}
-                                <strong>{{ m.hora }} · {{ m.nome }}</strong>
+                                <strong>
+                                    {{ m.hora }} ·
+                                    {% if barbeiro_selecionado is none %}
+                                        {{ m.barbeiro_nome }} ·
+                                    {% endif %}
+                                    {{ m.nome }}
+                                </strong>
                             </div>
                             {% endif %}{% endfor %}
                         </div>

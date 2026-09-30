@@ -308,3 +308,144 @@
     max-height: none !important;
     overflow: visible !important;
 }
+
+/* PAJO MULTIUSER — agenda usa toda a altura disponível */
+body.pagina-semana .agenda-semanal {
+    max-height: none !important;
+    height: auto !important;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+}
+
+body.pagina-semana .agenda-corpo {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    flex: 1 1 0 !important;
+    overflow: auto !important;
+}
+
+/* =========================================================
+   PAJO MULTIUSER — VISTA TODOS EM 3 FAIXAS
+   Bruno | Ricardo | Maia
+   ========================================================= */
+
+.agenda-todos .celula-agenda {
+    position: relative;
+}
+
+/* Bruno — faixa esquerda */
+.agenda-todos .marcacao-posicionada.barbeiro-bruno {
+    left: 2px !important;
+    right: auto !important;
+    width: calc(33.333% - 3px) !important;
+}
+
+/* Ricardo — faixa central */
+.agenda-todos .marcacao-posicionada.barbeiro-ricardo {
+    left: 33.333% !important;
+    right: auto !important;
+    width: calc(33.333% - 3px) !important;
+}
+
+/* Maia — faixa direita */
+.agenda-todos .marcacao-posicionada.barbeiro-maia {
+    left: 66.666% !important;
+    right: auto !important;
+    width: calc(33.333% - 3px) !important;
+}
+
+/* Texto mais compacto na vista Todos */
+.agenda-todos .marcacao-posicionada strong {
+    font-size: 10px !important;
+    white-space: normal !important;
+    line-height: 1.1 !important;
+}
+
+/* separadores discretos das três faixas */
+.agenda-todos .celula-agenda::before,
+.agenda-todos .celula-agenda::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #2a2a2a;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.agenda-todos .celula-agenda::before {
+    left: 33.333%;
+}
+
+.agenda-todos .celula-agenda::after {
+    left: 66.666%;
+}
+
+/* =========================================================
+   PAJO MULTIUSER — melhoria visual da vista Todos
+   ========================================================= */
+
+/* Separação mais forte entre os dias */
+.agenda-todos .agenda-dia {
+    border-right: 2px solid #4a4a4a !important;
+}
+
+.agenda-todos .celula-agenda {
+    border-right: 2px solid #3f3f3f !important;
+}
+
+/* última coluna sem linha adicional desnecessária */
+.agenda-todos .agenda-dia:last-child,
+.agenda-todos .linha-agenda .celula-agenda:last-child {
+    border-right-color: #252525 !important;
+}
+
+/* Remover as faixas diagonais de sobreposição */
+.agenda-todos .faixa-sobreposicao {
+    display: none !important;
+}
+
+/* Garantir que cada marcação mantém apenas a sua cor normal */
+.agenda-todos .marcacao-posicionada {
+    background-image: none !important;
+}
+
+/* PAJO MULTIUSER — alinhar cabeçalho com corpo da agenda */
+
+/* reserva permanentemente o espaço da barra vertical */
+body.pagina-semana .agenda-corpo {
+    scrollbar-gutter: stable !important;
+}
+
+/* o cabeçalho reserva exatamente a mesma zona visual */
+body.pagina-semana .agenda-cabecalho {
+    padding-right: 15px !important;
+    box-sizing: border-box !important;
+}
+
+/* linhas fortes apenas na fronteira real entre dias */
+.agenda-todos .agenda-dia,
+.agenda-todos .celula-agenda {
+    box-sizing: border-box !important;
+}
+
+.agenda-todos .agenda-dia {
+    border-right: 2px solid #484848 !important;
+}
+
+.agenda-todos .celula-agenda {
+    border-right: 2px solid #484848 !important;
+}
+
+/* PAJO MULTIUSER — estado concluída a azul */
+.marcacao-grelha.estado-concluída {
+    background: #1565c0 !important;
+    border-color: #1976d2 !important;
+    color: #ffffff !important;
+}
+
+.marcacao-grelha.estado-concluída strong {
+    color: #ffffff !important;
+}

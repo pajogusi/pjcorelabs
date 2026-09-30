@@ -1,4 +1,5 @@
 import base64
+import shutil
 import csv
 import io
 import json
@@ -39,8 +40,14 @@ def enviar_email_brevo(destinatario, assunto, texto, anexo_nome=None, anexo_cont
 
     payload = {
         "sender": {
-            "name": "Blessed Barbearia Testes",
-            "email": "pjgs.form@gmail.com",
+            "name": os.environ.get(
+                "BREVO_SENDER_NAME",
+                "Blessed Barbearia"
+            ).strip(),
+            "email": os.environ.get(
+                "BREVO_SENDER_EMAIL",
+                "pjgs.form@gmail.com"
+            ).strip(),
         },
         "to": [
             {
@@ -82,6 +89,10 @@ def enviar_email_brevo(destinatario, assunto, texto, anexo_nome=None, anexo_cont
 
 def enviar_sms_smsgate(telefone, texto):
     """Envia SMS através do SMSGate no Lenovo via Tailscale. Devolve True/False."""
+    if app.config.get("TESTING") or os.environ.get("BLESSED_DISABLE_SMS") == "1":
+        print("SMS TESTE: envio real bloqueado")
+        return True
+
     telefone = normalizar_telefone(telefone)
     texto = (texto or "").strip()
 
@@ -147,17 +158,32 @@ def get_db():
 def utilizador_atual():
     if "utilizador" not in g:
         utilizador_id = session.get("utilizador_id")
+
         if not utilizador_id:
             g.utilizador = None
         else:
             con = get_db()
             g.utilizador = con.execute(
-                "SELECT id, nome, username, papel, ativo, pode_consultar_agendas, pode_marcar_outros FROM utilizadores WHERE id = ?",
+                """
+                SELECT
+                    id,
+                    nome,
+                    username,
+                    papel,
+                    ativo,
+                    pode_consultar_agendas,
+                    pode_marcar_outros,
+                    sms_autorizado,
+                    sms_provider,
+                    e_admin
+                FROM utilizadores
+                WHERE id = ?
+                """,
                 (utilizador_id,),
             ).fetchone()
             con.close()
-    return g.utilizador
 
+    return g.utilizador
 
 def gestor():
     utilizador = utilizador_atual()
@@ -175,6 +201,21 @@ def requer_login(func):
     return protegido
 
 
+def admin_atual():
+    utilizador = utilizador_atual()
+    return bool(utilizador and utilizador["e_admin"])
+
+
+def requer_admin(func):
+    @wraps(func)
+    @requer_login
+    def protegido(*args, **kwargs):
+        if not admin_atual():
+            abort(403)
+        return func(*args, **kwargs)
+    return protegido
+
+
 def requer_gestor(func):
     @wraps(func)
     @requer_login
@@ -183,6 +224,109 @@ def requer_gestor(func):
             abort(403)
         return func(*args, **kwargs)
     return protegido
+
+
+def renderizar_modelo_comunicacao(con, chave, **dados):
+    """Lê um modelo ativo da BD e substitui as variáveis conhecidas."""
+    modelo = con.execute("""
+        SELECT chave, canal, nome, assunto, conteudo, ativo
+        FROM modelos_comunicacao
+        WHERE chave = ?
+        LIMIT 1
+    """, (chave,)).fetchone()
+
+    if not modelo or not modelo["ativo"]:
+        return None
+
+    assunto = modelo["assunto"] or ""
+    conteudo = modelo["conteudo"] or ""
+
+    for campo, valor in dados.items():
+        marcador = "{" + campo + "}"
+        valor = "" if valor is None else str(valor)
+        assunto = assunto.replace(marcador, valor)
+        conteudo = conteudo.replace(marcador, valor)
+
+    return {
+        "assunto": assunto,
+        "conteudo": conteudo,
+    }
+
+
+def obter_email_barbeiro(con, barbeiro_id):
+    """Configuração de email do profissional."""
+    return con.execute("""
+        SELECT
+            id,
+            nome,
+            username,
+            email_ativo,
+            email_confirmacao,
+            email_lembrete_24h,
+            email_lembrete_1h
+        FROM utilizadores
+        WHERE id = ?
+          AND ativo = 1
+    """, (barbeiro_id,)).fetchone()
+
+
+def email_barbeiro_permitido(config):
+    return bool(
+        config
+        and config["email_ativo"]
+    )
+
+
+def obter_sms_barbeiro(con, barbeiro_id):
+    """Configuração SMS do profissional. Sem autorização não existe envio."""
+    return con.execute("""
+        SELECT id, nome, username, sms_autorizado, sms_provider
+        FROM utilizadores
+        WHERE id = ? AND ativo = 1
+    """, (barbeiro_id,)).fetchone()
+
+
+def sms_barbeiro_permitido(config):
+    return bool(
+        config
+        and config["sms_autorizado"]
+        and config["sms_provider"]
+    )
+
+
+def enviar_sms_do_barbeiro(barbeiro_id, telefone, texto):
+    """Encaminha SMS pelo fornecedor pertencente ao respetivo profissional."""
+    con = get_db()
+    config = obter_sms_barbeiro(con, barbeiro_id)
+    con.close()
+
+    if not sms_barbeiro_permitido(config):
+        print(f"SMS: bloqueado para barbeiro_id={barbeiro_id}")
+        return False
+
+    if config["sms_provider"] == "smsgate":
+        return enviar_sms_smsgate(telefone, texto)
+
+    print(
+        f"SMS: fornecedor '{config['sms_provider']}' "
+        f"ainda não implementado para barbeiro_id={barbeiro_id}"
+    )
+    return False
+
+
+def pode_gerir_cliente(cliente):
+    utilizador = utilizador_atual()
+
+    if not utilizador or not cliente:
+        return False
+
+    if utilizador["e_admin"]:
+        return True
+
+    if utilizador["papel"] == "gestor":
+        return True
+
+    return cliente["barbeiro_id"] == utilizador["id"]
 
 
 def barbeiro_permitido(barbeiro_id):
@@ -262,12 +406,46 @@ def barbeiro_livre_para_reserva(con, barbeiro_id, inicio, duracao_minutos):
 
 @app.before_request
 def exigir_autenticacao():
-    if request.endpoint in {"login", "logout", "online_reservar", "online_reservar_submeter", "online_reserva_pagamento", "static"}:
+    if request.endpoint in {
+        "login",
+        "logout",
+        "online_reservar",
+        "online_reservar_submeter",
+        "online_reserva_pagamento",
+        "static",
+    }:
         return None
+
     utilizador = utilizador_atual()
+
     if not utilizador or not utilizador["ativo"]:
         session.clear()
         return redirect(url_for("login"))
+
+    # Bruno/gestor tem acesso total.
+    if utilizador["papel"] == "gestor":
+        return None
+
+    # Barbeiros normais só podem usar a sua própria agenda
+    # e as ações necessárias para trabalhar nela.
+    permitidos_barbeiro = {
+        "entrada",
+        "home",
+        "semana",
+        "estatisticas",
+        "cliente_detalhe",
+        "novo_cliente",
+        "clientes",
+        "cliente_por_telefone",
+        "disponibilidade",
+        "nova_marcacao",
+        "alterar_duracao_marcacao",
+        "alterar_estado_marcacao",
+    }
+
+    if request.endpoint not in permitidos_barbeiro:
+        return redirect(url_for("semana"))
+
     return None
 
 
@@ -550,6 +728,20 @@ def garantir_esquema():
         con.execute("ALTER TABLE utilizadores ADD COLUMN pode_consultar_agendas INTEGER NOT NULL DEFAULT 0")
     if "pode_marcar_outros" not in colunas_utilizadores:
         con.execute("ALTER TABLE utilizadores ADD COLUMN pode_marcar_outros INTEGER NOT NULL DEFAULT 0")
+    if "sms_autorizado" not in colunas_utilizadores:
+        con.execute("ALTER TABLE utilizadores ADD COLUMN sms_autorizado INTEGER NOT NULL DEFAULT 0")
+    if "sms_provider" not in colunas_utilizadores:
+        con.execute("ALTER TABLE utilizadores ADD COLUMN sms_provider TEXT")
+    if "e_admin" not in colunas_utilizadores:
+        con.execute("ALTER TABLE utilizadores ADD COLUMN e_admin INTEGER NOT NULL DEFAULT 0")
+    if "email_ativo" not in colunas_utilizadores:
+        con.execute("ALTER TABLE utilizadores ADD COLUMN email_ativo INTEGER NOT NULL DEFAULT 0")
+    if "email_confirmacao" not in colunas_utilizadores:
+        con.execute("ALTER TABLE utilizadores ADD COLUMN email_confirmacao INTEGER NOT NULL DEFAULT 0")
+    if "email_lembrete_24h" not in colunas_utilizadores:
+        con.execute("ALTER TABLE utilizadores ADD COLUMN email_lembrete_24h INTEGER NOT NULL DEFAULT 0")
+    if "email_lembrete_1h" not in colunas_utilizadores:
+        con.execute("ALTER TABLE utilizadores ADD COLUMN email_lembrete_1h INTEGER NOT NULL DEFAULT 0")
     con.execute("CREATE INDEX IF NOT EXISTS idx_marcacoes_barbeiro_inicio ON marcacoes (barbeiro_id, inicio)")
 
     # Reservas online ficam separadas das marcações confirmadas: só passam à
@@ -595,6 +787,35 @@ def garantir_esquema():
     colunas_clientes = {row["name"] for row in con.execute("PRAGMA table_info(clientes)")}
     if "alerta_inatividade_visto_em" not in colunas_clientes:
         con.execute("ALTER TABLE clientes ADD COLUMN alerta_inatividade_visto_em TEXT")
+    if "barbeiro_id" not in colunas_clientes:
+        con.execute("ALTER TABLE clientes ADD COLUMN barbeiro_id INTEGER")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_clientes_barbeiro ON clientes (barbeiro_id)")
+
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS servicos_catalogo (
+            id INTEGER PRIMARY KEY,
+            nome TEXT NOT NULL,
+            descricao TEXT,
+            duracao_minutos INTEGER NOT NULL DEFAULT 30,
+            preco_pence INTEGER NOT NULL DEFAULT 0,
+            ativo INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0,1)),
+            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS produtos_catalogo (
+            id INTEGER PRIMARY KEY,
+            nome TEXT NOT NULL,
+            descricao TEXT,
+            preco_pence INTEGER NOT NULL DEFAULT 0,
+            imagem TEXT,
+            ativo INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0,1)),
+            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
     con.execute("""
         CREATE TABLE IF NOT EXISTS definicoes (
@@ -631,6 +852,7 @@ def garantir_esquema():
         CREATE TABLE IF NOT EXISTS sms_fila (
             id INTEGER PRIMARY KEY,
             cliente_id INTEGER NOT NULL,
+            telefone_id INTEGER,
             marcacao_id INTEGER,
             telefone_destino TEXT NOT NULL,
             tipo TEXT NOT NULL,
@@ -647,6 +869,34 @@ def garantir_esquema():
             FOREIGN KEY (marcacao_id) REFERENCES marcacoes(id)
         )
     """)
+
+    colunas_sms = {
+        row["name"]
+        for row in con.execute("PRAGMA table_info(sms_fila)")
+    }
+    if "telefone_id" not in colunas_sms:
+        con.execute("ALTER TABLE sms_fila ADD COLUMN telefone_id INTEGER")
+
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS modelos_comunicacao (
+            id INTEGER PRIMARY KEY,
+            chave TEXT NOT NULL UNIQUE,
+            canal TEXT NOT NULL,
+            nome TEXT NOT NULL,
+            assunto TEXT,
+            conteudo TEXT NOT NULL,
+            conteudo_padrao TEXT NOT NULL,
+            ativo INTEGER NOT NULL DEFAULT 1,
+            atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    colunas_email_fila = {
+        row["name"]
+        for row in con.execute("PRAGMA table_info(email_fila)")
+    }
+    if "barbeiro_id" not in colunas_email_fila:
+        con.execute("ALTER TABLE email_fila ADD COLUMN barbeiro_id INTEGER")
 
     con.execute("""
         CREATE TABLE IF NOT EXISTS atividade_log (
@@ -869,20 +1119,42 @@ def semana():
     concretizar_marcacoes_vencidas(con)
     utilizador = utilizador_atual()
     barbeiros = con.execute(
-        "SELECT id, nome FROM utilizadores WHERE ativo = 1 AND papel IN ('gestor', 'barbeiro') ORDER BY nome COLLATE NOCASE"
+        """
+        SELECT id, nome, username
+        FROM utilizadores
+        WHERE ativo = 1
+          AND papel IN ('gestor', 'barbeiro')
+          AND COALESCE(e_admin, 0) = 0
+        ORDER BY
+          CASE WHEN username = 'bruno' THEN 0 ELSE 1 END,
+          nome COLLATE NOCASE
+        """
     ).fetchall()
     barbeiro_pedido = request.args.get("barbeiro", "").strip()
-    barbeiro_id = None
-    if barbeiro_pedido.isdigit() and any(b["id"] == int(barbeiro_pedido) for b in barbeiros) and pode_consultar_agenda(int(barbeiro_pedido)):
+
+    if barbeiro_pedido == "todos" and utilizador["papel"] == "gestor":
+        barbeiro_id = None
+    elif barbeiro_pedido.isdigit() and any(b["id"] == int(barbeiro_pedido) for b in barbeiros) and pode_consultar_agenda(int(barbeiro_pedido)):
         barbeiro_id = int(barbeiro_pedido)
-    elif utilizador["papel"] == "barbeiro":
+    else:
+        # Por defeito cada utilizador abre a sua própria agenda.
         barbeiro_id = utilizador["id"]
 
     filtro_barbeiro = " AND m.barbeiro_id = ?" if barbeiro_id else ""
     marcacoes = con.execute("""
-        SELECT m.id, m.inicio, m.duracao_minutos, m.servico, m.estado, c.nome, m.barbeiro_id
+        SELECT
+            m.id,
+            m.inicio,
+            m.duracao_minutos,
+            m.servico,
+            m.estado,
+            c.nome,
+            m.barbeiro_id,
+            u.username AS barbeiro_username,
+            u.nome AS barbeiro_nome
         FROM marcacoes AS m
         JOIN clientes AS c ON c.id = m.cliente_id
+        LEFT JOIN utilizadores AS u ON u.id = m.barbeiro_id
         WHERE substr(m.inicio, 1, 10) BETWEEN ? AND ? AND m.estado != 'cancelada'""" + filtro_barbeiro + " ORDER BY m.inicio",
         (inicio_semana.isoformat(), fim_semana.isoformat(), *([barbeiro_id] if barbeiro_id else [])),
     ).fetchall()
@@ -913,6 +1185,8 @@ def semana():
                 "estado": m["estado"],
                 "nome": m["nome"] if gestor() or m["barbeiro_id"] == utilizador["id"] else "Ocupado",
                 "barbeiro_id": m["barbeiro_id"],
+                "barbeiro_username": m["barbeiro_username"],
+                "barbeiro_nome": m["barbeiro_nome"],
             })
         # Calcula, para cada marcação, os intervalos em que existe
         # sobreposição com outra marcação do mesmo dia.
@@ -953,7 +1227,12 @@ def semana():
 
             atual["sobreposicoes"] = faixas
 
-        dias.append({"data": data_dia.isoformat(), "nome": nomes_dias[numero], "marcacoes": marcacoes_dia})
+        dias.append({
+            "data": data_dia.isoformat(),
+            "nome": nomes_dias[numero],
+            "marcacoes": marcacoes_dia,
+            "total": len(marcacoes_dia),
+        })
 
     horas_grelha = []
     hora_atual = datetime.strptime("08:00", "%H:%M")
@@ -961,6 +1240,10 @@ def semana():
     while hora_atual < hora_fim:
         horas_grelha.append(hora_atual.strftime("%H:%M"))
         hora_atual += timedelta(minutes=30)
+
+    hoje = date.today()
+    inicio_semana_atual = hoje - timedelta(days=hoje.weekday())
+    semana_atual = inicio_semana == inicio_semana_atual
 
     return render_template(
         "semana.html",
@@ -977,31 +1260,1168 @@ def semana():
         barbeiro_selecionado=barbeiro_id,
         pode_consultar_outros=bool(utilizador["pode_consultar_agendas"]),
         pode_marcar_outros=bool(utilizador["pode_marcar_outros"]),
+        total_semana=len(marcacoes),
+        semana_atual=semana_atual,
     )
+
+
+
+@app.route("/estatisticas")
+def estatisticas():
+    con = get_db()
+    utilizador = utilizador_atual()
+
+    barbeiros = con.execute("""
+        SELECT id, nome, username
+        FROM utilizadores
+        WHERE ativo = 1
+          AND papel IN ('gestor', 'barbeiro')
+        ORDER BY
+            CASE WHEN username = 'bruno' THEN 0 ELSE 1 END,
+            nome COLLATE NOCASE
+    """).fetchall()
+
+    barbeiro_pedido = request.args.get("barbeiro", "").strip()
+
+    if utilizador["papel"] == "gestor":
+        if barbeiro_pedido == "todos":
+            barbeiro_id = None
+        elif barbeiro_pedido.isdigit() and any(
+            b["id"] == int(barbeiro_pedido)
+            for b in barbeiros
+        ):
+            barbeiro_id = int(barbeiro_pedido)
+        else:
+            # Bruno vê as suas estatísticas por defeito
+            barbeiro_id = utilizador["id"]
+    else:
+        # Ricardo/Maia só podem ver as próprias
+        barbeiro_id = utilizador["id"]
+
+    filtro = ""
+    parametros_barbeiro = []
+
+    if barbeiro_id is not None:
+        filtro = " AND barbeiro_id = ?"
+        parametros_barbeiro = [barbeiro_id]
+
+    hoje = date.today()
+    inicio_semana = hoje - timedelta(days=hoje.weekday())
+    fim_semana = inicio_semana + timedelta(days=6)
+
+    inicio_mes = hoje.replace(day=1)
+
+    if hoje.month == 12:
+        inicio_mes_seguinte = date(hoje.year + 1, 1, 1)
+    else:
+        inicio_mes_seguinte = date(
+            hoje.year,
+            hoje.month + 1,
+            1
+        )
+
+    inicio_ano = date(hoje.year, 1, 1)
+    inicio_ano_seguinte = date(hoje.year + 1, 1, 1)
+
+    def contar_entre(inicio_data, fim_data):
+        return con.execute(
+            """
+            SELECT COUNT(*)
+            FROM marcacoes
+            WHERE estado = 'concluída'
+              AND substr(inicio, 1, 10) >= ?
+              AND substr(inicio, 1, 10) < ?
+            """ + filtro,
+            (
+                inicio_data.isoformat(),
+                fim_data.isoformat(),
+                *parametros_barbeiro
+            )
+        ).fetchone()[0]
+
+    cortes_hoje = con.execute(
+        """
+        SELECT COUNT(*)
+        FROM marcacoes
+        WHERE estado = 'concluída'
+          AND substr(inicio, 1, 10) = ?
+        """ + filtro,
+        (
+            hoje.isoformat(),
+            *parametros_barbeiro
+        )
+    ).fetchone()[0]
+
+    historico_mensal = con.execute(
+        """
+        SELECT
+            substr(inicio, 1, 7) AS mes,
+            COUNT(*) AS total
+        FROM marcacoes
+        WHERE estado = 'concluída'
+        """ + filtro + """
+        GROUP BY substr(inicio, 1, 7)
+        ORDER BY mes DESC
+        """,
+        parametros_barbeiro
+    ).fetchall()
+
+    dados = {
+        "hoje": cortes_hoje,
+        "semana": contar_entre(
+            inicio_semana,
+            fim_semana + timedelta(days=1)
+        ),
+        "mes": contar_entre(
+            inicio_mes,
+            inicio_mes_seguinte
+        ),
+        "ano": contar_entre(
+            inicio_ano,
+            inicio_ano_seguinte
+        ),
+    }
+
+    con.close()
+
+    return render_template(
+        "estatisticas.html",
+        estatisticas=dados,
+        historico_mensal=historico_mensal,
+        utilizador=utilizador,
+        barbeiros=barbeiros,
+        barbeiro_selecionado=barbeiro_id,
+    )
+
+
+
+
+@app.route("/admin")
+@requer_admin
+def admin():
+    con = get_db()
+
+    utilizadores = con.execute("""
+        SELECT
+            u.id,
+            u.nome,
+            u.username,
+            u.papel,
+            u.ativo,
+            u.pode_consultar_agendas,
+            u.pode_marcar_outros,
+            u.sms_autorizado,
+            u.sms_provider,
+            u.email_ativo,
+            u.email_confirmacao,
+            u.email_lembrete_24h,
+            u.email_lembrete_1h,
+            u.e_admin,
+            (
+                SELECT COUNT(*)
+                FROM clientes c
+                WHERE c.barbeiro_id = u.id
+            ) AS total_clientes,
+            (
+                SELECT COUNT(*)
+                FROM marcacoes m
+                WHERE m.barbeiro_id = u.id
+            ) AS total_marcacoes
+        FROM utilizadores u
+        ORDER BY
+            u.e_admin DESC,
+            CASE WHEN u.username = 'bruno' THEN 0 ELSE 1 END,
+            u.nome COLLATE NOCASE
+    """).fetchall()
+
+    total_clientes = con.execute(
+        "SELECT COUNT(*) FROM clientes"
+    ).fetchone()[0]
+
+    total_marcacoes = con.execute(
+        "SELECT COUNT(*) FROM marcacoes"
+    ).fetchone()[0]
+
+    produtos = con.execute("""
+        SELECT
+            id,
+            nome,
+            descricao,
+            preco_pence,
+            imagem,
+            ativo
+        FROM produtos_catalogo
+        ORDER BY ativo DESC, nome COLLATE NOCASE
+    """).fetchall()
+
+    servicos = con.execute("""
+        SELECT
+            id,
+            nome,
+            descricao,
+            duracao_minutos,
+            preco_pence,
+            ativo
+        FROM servicos_catalogo
+        ORDER BY ativo DESC, nome COLLATE NOCASE
+    """).fetchall()
+
+    modelos_comunicacao = con.execute("""
+        SELECT
+            id,
+            chave,
+            canal,
+            nome,
+            assunto,
+            conteudo,
+            conteudo_padrao,
+            ativo
+        FROM modelos_comunicacao
+        ORDER BY
+            CASE canal
+                WHEN 'sms' THEN 0
+                WHEN 'email' THEN 1
+                ELSE 2
+            END,
+            id
+    """).fetchall()
+
+    clientes_admin = con.execute("""
+        SELECT
+            c.id,
+            c.nome,
+            c.email,
+            c.barbeiro_id,
+            u.nome AS barbeiro,
+            u.username AS barbeiro_username,
+
+            (
+                SELECT t.numero
+                FROM telefones t
+                WHERE t.cliente_id = c.id
+                  AND t.atual = 1
+                ORDER BY t.id DESC
+                LIMIT 1
+            ) AS telefone,
+
+            (
+                SELECT COUNT(*)
+                FROM marcacoes m
+                WHERE m.cliente_id = c.id
+            ) AS total_marcacoes
+
+        FROM clientes c
+        LEFT JOIN utilizadores u
+          ON u.id = c.barbeiro_id
+
+        ORDER BY c.nome COLLATE NOCASE
+    """).fetchall()
+
+    db_path_admin = Path("blessed.db")
+
+    sistema_admin = {
+        "db_existe": db_path_admin.exists(),
+        "db_tamanho_mb": (
+            round(db_path_admin.stat().st_size / 1024 / 1024, 2)
+            if db_path_admin.exists()
+            else 0
+        ),
+    }
+
+    pasta_backups = Path("backups")
+
+    backups_admin = []
+
+    if pasta_backups.exists():
+        backups_admin = [
+            {
+                "nome": f.name,
+                "tamanho_mb": round(f.stat().st_size / 1024 / 1024, 2),
+            }
+            for f in sorted(
+                pasta_backups.glob("blessed-*.db"),
+                key=lambda x: x.stat().st_mtime,
+                reverse=True,
+            )[:10]
+        ]
+
+    con.close()
+
+    return render_template(
+        "admin.html",
+        utilizadores=utilizadores,
+        total_clientes=total_clientes,
+        total_marcacoes=total_marcacoes,
+        produtos=produtos,
+        servicos=servicos,
+        modelos_comunicacao=modelos_comunicacao,
+        clientes_admin=clientes_admin,
+        sistema_admin=sistema_admin,
+        backups_admin=backups_admin,
+        utilizador=utilizador_atual(),
+    )
+
+
+
+@app.route("/admin/modelos/<int:modelo_id>/guardar", methods=["POST"])
+@requer_admin
+def admin_modelo_guardar(modelo_id):
+    conteudo = request.form.get("conteudo", "").strip()
+    assunto = request.form.get("assunto", "").strip()
+    ativo = 1 if request.form.get("ativo") == "1" else 0
+
+    if not conteudo:
+        return "O conteúdo da mensagem não pode ficar vazio", 400
+
+    con = get_db()
+
+    modelo = con.execute("""
+        SELECT id, canal
+        FROM modelos_comunicacao
+        WHERE id = ?
+    """, (modelo_id,)).fetchone()
+
+    if not modelo:
+        con.close()
+        return "Modelo não encontrado", 404
+
+    if modelo["canal"] != "email":
+        assunto = None
+
+    con.execute("""
+        UPDATE modelos_comunicacao
+        SET assunto = ?,
+            conteudo = ?,
+            ativo = ?,
+            atualizado_em = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (
+        assunto or None,
+        conteudo,
+        ativo,
+        modelo_id,
+    ))
+
+    con.commit()
+    con.close()
+
+    return redirect(url_for("admin") + "#admin-modelos")
+
+
+@app.route("/admin/modelos/<int:modelo_id>/repor", methods=["POST"])
+@requer_admin
+def admin_modelo_repor(modelo_id):
+    con = get_db()
+
+    modelo = con.execute("""
+        SELECT id
+        FROM modelos_comunicacao
+        WHERE id = ?
+    """, (modelo_id,)).fetchone()
+
+    if not modelo:
+        con.close()
+        return "Modelo não encontrado", 404
+
+    con.execute("""
+        UPDATE modelos_comunicacao
+        SET conteudo = conteudo_padrao,
+            ativo = 1,
+            atualizado_em = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (modelo_id,))
+
+    con.commit()
+    con.close()
+
+    return redirect(url_for("admin") + "#admin-modelos")
+
+
+
+@app.route("/admin/campanhas/preparar", methods=["POST"])
+@requer_admin
+def admin_campanha_preparar():
+    tipo = request.form.get("tipo", "").strip()
+    canal = request.form.get("canal", "").strip()
+    barbeiro = request.form.get("barbeiro_id", "todos").strip()
+    assunto = request.form.get("assunto", "").strip()
+    mensagem = request.form.get("mensagem", "").strip()
+
+    tipos_validos = {
+        "natal",
+        "ano_novo",
+        "ferias",
+        "livre",
+    }
+
+    canais_validos = {
+        "sms",
+        "email",
+        "ambos",
+    }
+
+    if tipo not in tipos_validos:
+        return "Tipo de campanha inválido", 400
+
+    if canal not in canais_validos:
+        return "Canal inválido", 400
+
+    if not mensagem:
+        return "A mensagem não pode ficar vazia", 400
+
+    if canal in ("email", "ambos") and not assunto:
+        return "O assunto é obrigatório para email", 400
+
+    con = get_db()
+
+    barbeiro_id = None
+
+    if barbeiro != "todos":
+        try:
+            barbeiro_id = int(barbeiro)
+        except ValueError:
+            con.close()
+            return "Barbeiro inválido", 400
+
+        profissional = con.execute("""
+            SELECT id
+            FROM utilizadores
+            WHERE id = ?
+              AND ativo = 1
+              AND COALESCE(e_admin, 0) = 0
+        """, (barbeiro_id,)).fetchone()
+
+        if not profissional:
+            con.close()
+            return "Barbeiro não encontrado", 404
+
+    filtros = []
+    parametros = []
+
+    if barbeiro_id is not None:
+        filtros.append("c.barbeiro_id = ?")
+        parametros.append(barbeiro_id)
+
+    where = ""
+    if filtros:
+        where = "WHERE " + " AND ".join(filtros)
+
+    clientes = con.execute(f"""
+        SELECT
+            c.id,
+            c.nome,
+            c.email,
+            c.barbeiro_id,
+            u.nome AS barbeiro,
+            (
+                SELECT t.numero
+                FROM telefones t
+                WHERE t.cliente_id = c.id
+                  AND t.atual = 1
+                ORDER BY t.id DESC
+                LIMIT 1
+            ) AS telefone
+        FROM clientes c
+        LEFT JOIN utilizadores u
+          ON u.id = c.barbeiro_id
+        {where}
+        ORDER BY c.nome COLLATE NOCASE
+    """, parametros).fetchall()
+
+    total_clientes = len(clientes)
+
+    total_sms = sum(
+        1 for c in clientes
+        if c["telefone"]
+    )
+
+    total_email = sum(
+        1 for c in clientes
+        if c["email"]
+    )
+
+    if canal == "sms":
+        total_destinatarios = total_sms
+    elif canal == "email":
+        total_destinatarios = total_email
+    else:
+        total_destinatarios = total_sms + total_email
+
+    cur = con.execute("""
+        INSERT INTO campanhas
+        (
+            titulo,
+            nome,
+            tipo,
+            canal,
+            barbeiro_id,
+            assunto,
+            mensagem,
+            estado,
+            total_destinatarios,
+            criado_por_id
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'rascunho', ?, ?)
+    """, (
+        {
+            "natal": "Natal",
+            "ano_novo": "Ano Novo",
+            "ferias": "Férias / Encerramento",
+            "livre": "Mensagem livre",
+        }[tipo],
+        {
+            "natal": "Natal",
+            "ano_novo": "Ano Novo",
+            "ferias": "Férias / Encerramento",
+            "livre": "Mensagem livre",
+        }[tipo],
+        tipo,
+        canal,
+        barbeiro_id,
+        assunto or None,
+        mensagem,
+        total_destinatarios,
+        utilizador_atual()["id"],
+    ))
+
+    campanha_id = cur.lastrowid
+
+    con.commit()
+
+    campanha = con.execute("""
+        SELECT
+            c.*,
+            u.nome AS barbeiro
+        FROM campanhas c
+        LEFT JOIN utilizadores u
+          ON u.id = c.barbeiro_id
+        WHERE c.id = ?
+    """, (campanha_id,)).fetchone()
+
+    con.close()
+
+    return render_template(
+        "campanha_preview.html",
+        campanha=campanha,
+        total_clientes=total_clientes,
+        total_sms=total_sms,
+        total_email=total_email,
+    )
+
+
+@app.route("/admin/campanhas/<int:campanha_id>/confirmar", methods=["POST"])
+@requer_admin
+def admin_campanha_confirmar(campanha_id):
+    con = get_db()
+
+    campanha = con.execute("""
+        SELECT *
+        FROM campanhas
+        WHERE id = ?
+          AND estado = 'rascunho'
+    """, (campanha_id,)).fetchone()
+
+    if not campanha:
+        con.close()
+        return "Campanha não encontrada ou já confirmada", 404
+
+    filtros = []
+    parametros = []
+
+    if campanha["barbeiro_id"] is not None:
+        filtros.append("c.barbeiro_id = ?")
+        parametros.append(campanha["barbeiro_id"])
+
+    where = ""
+    if filtros:
+        where = "WHERE " + " AND ".join(filtros)
+
+    clientes = con.execute(f"""
+        SELECT
+            c.id,
+            c.nome,
+            c.email,
+            (
+                SELECT t.numero
+                FROM telefones t
+                WHERE t.cliente_id = c.id
+                  AND t.atual = 1
+                ORDER BY t.id DESC
+                LIMIT 1
+            ) AS telefone
+        FROM clientes c
+        {where}
+        ORDER BY c.id
+    """, parametros).fetchall()
+
+    total = 0
+
+    try:
+        for cliente in clientes:
+
+            if campanha["canal"] in ("sms", "ambos") and cliente["telefone"]:
+                con.execute("""
+                    INSERT INTO campanha_destinatarios
+                    (
+                        campanha_id,
+                        cliente_id,
+                        canal,
+                        destino,
+                        estado
+                    )
+                    VALUES (?, ?, 'sms', ?, 'pendente')
+                """, (
+                    campanha_id,
+                    cliente["id"],
+                    cliente["telefone"],
+                ))
+                total += 1
+
+            if campanha["canal"] in ("email", "ambos") and cliente["email"]:
+                con.execute("""
+                    INSERT INTO campanha_destinatarios
+                    (
+                        campanha_id,
+                        cliente_id,
+                        canal,
+                        destino,
+                        estado
+                    )
+                    VALUES (?, ?, 'email', ?, 'pendente')
+                """, (
+                    campanha_id,
+                    cliente["id"],
+                    cliente["email"],
+                ))
+                total += 1
+
+        con.execute("""
+            UPDATE campanhas
+            SET estado = 'confirmada',
+                total_destinatarios = ?,
+                confirmado_em = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (
+            total,
+            campanha_id,
+        ))
+
+        con.commit()
+
+    except Exception:
+        con.rollback()
+        con.close()
+        raise
+
+    con.close()
+
+    return redirect(url_for("admin") + "#admin-campanhas")
+
+
+@app.route("/admin/campanhas/<int:campanha_id>/cancelar", methods=["POST"])
+@requer_admin
+def admin_campanha_cancelar(campanha_id):
+    con = get_db()
+
+    con.execute("""
+        UPDATE campanhas
+        SET estado = 'cancelada'
+        WHERE id = ?
+          AND estado = 'rascunho'
+    """, (campanha_id,))
+
+    con.commit()
+    con.close()
+
+    return redirect(url_for("admin") + "#admin-campanhas")
+
+
+
+@app.route("/admin/sistema/backup", methods=["POST"])
+@requer_admin
+def admin_sistema_backup():
+    origem = Path("blessed.db")
+
+    if not origem.exists():
+        return "Base de dados não encontrada", 404
+
+    pasta = Path("backups")
+    pasta.mkdir(exist_ok=True)
+
+    nome = datetime.now().strftime(
+        "blessed-%Y%m%d-%H%M%S.db"
+    )
+
+    destino = pasta / nome
+
+    shutil.copy2(origem, destino)
+
+    return redirect(
+        url_for("admin") + "#admin-sistema"
+    )
+
+
+@app.route("/admin/utilizadores/novo", methods=["POST"])
+@requer_admin
+def admin_novo_utilizador():
+    nome = request.form.get("nome", "").strip()
+    username = request.form.get("username", "").strip().lower()
+    password = request.form.get("password", "")
+
+    if not nome or not username or not password:
+        return "Nome, username e password são obrigatórios", 400
+
+    con = get_db()
+
+    try:
+        con.execute("""
+            INSERT INTO utilizadores
+            (
+                nome,
+                username,
+                password_hash,
+                papel,
+                ativo,
+                pode_consultar_agendas,
+                pode_marcar_outros,
+                sms_autorizado,
+                sms_provider,
+                e_admin
+            )
+            VALUES (?, ?, ?, 'barbeiro', 1, 0, 0, 0, NULL, 0)
+        """, (
+            nome,
+            username,
+            generate_password_hash(password),
+        ))
+
+        con.commit()
+
+    except sqlite3.IntegrityError:
+        con.rollback()
+        con.close()
+        return "Esse username já existe", 409
+
+    con.close()
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/utilizadores/<int:utilizador_id>/guardar", methods=["POST"])
+@requer_admin
+def admin_guardar_utilizador(utilizador_id):
+    con = get_db()
+
+    atual = con.execute("""
+        SELECT *
+        FROM utilizadores
+        WHERE id = ?
+    """, (utilizador_id,)).fetchone()
+
+    if not atual:
+        con.close()
+        return "Utilizador não encontrado", 404
+
+    nome = request.form.get("nome", "").strip()
+    username = request.form.get("username", "").strip().lower()
+    password = request.form.get("password", "")
+
+    ativo = 1 if request.form.get("ativo") == "1" else 0
+    consultar = 1 if request.form.get("pode_consultar_agendas") == "1" else 0
+    marcar = 1 if request.form.get("pode_marcar_outros") == "1" else 0
+    sms = 1 if request.form.get("sms_autorizado") == "1" else 0
+
+    email_ativo = 1 if request.form.get("email_ativo") == "1" else 0
+    email_confirmacao = 1 if request.form.get("email_confirmacao") == "1" else 0
+    email_lembrete_24h = 1 if request.form.get("email_lembrete_24h") == "1" else 0
+    email_lembrete_1h = 1 if request.form.get("email_lembrete_1h") == "1" else 0
+
+    # A própria conta admin não pode ser desativada pela página.
+    if atual["e_admin"]:
+        ativo = 1
+        sms = 0
+        email_ativo = 0
+        email_confirmacao = 0
+        email_lembrete_24h = 0
+        email_lembrete_1h = 0
+
+    if not nome or not username:
+        con.close()
+        return "Nome e username são obrigatórios", 400
+
+    try:
+        con.execute("""
+            UPDATE utilizadores
+            SET nome = ?,
+                username = ?,
+                ativo = ?,
+                pode_consultar_agendas = ?,
+                pode_marcar_outros = ?,
+                sms_autorizado = ?,
+                email_ativo = ?,
+                email_confirmacao = ?,
+                email_lembrete_24h = ?,
+                email_lembrete_1h = ?,
+                atualizado_em = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (
+            nome,
+            username,
+            ativo,
+            consultar,
+            marcar,
+            sms,
+            email_ativo,
+            email_confirmacao,
+            email_lembrete_24h,
+            email_lembrete_1h,
+            utilizador_id,
+        ))
+
+        if password:
+            con.execute("""
+                UPDATE utilizadores
+                SET password_hash = ?,
+                    atualizado_em = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (
+                generate_password_hash(password),
+                utilizador_id,
+            ))
+
+        con.commit()
+
+    except sqlite3.IntegrityError:
+        con.rollback()
+        con.close()
+        return "Esse username já existe", 409
+
+    con.close()
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/utilizadores/<int:utilizador_id>/apagar", methods=["POST"])
+@requer_admin
+def admin_apagar_utilizador(utilizador_id):
+    utilizador = utilizador_atual()
+
+    if utilizador_id == utilizador["id"]:
+        return "Não podes apagar a tua própria conta administrativa", 400
+
+    con = get_db()
+
+    alvo = con.execute("""
+        SELECT id, nome, e_admin
+        FROM utilizadores
+        WHERE id = ?
+    """, (utilizador_id,)).fetchone()
+
+    if not alvo:
+        con.close()
+        return "Utilizador não encontrado", 404
+
+    if alvo["e_admin"]:
+        con.close()
+        return "Uma conta administrativa não pode ser apagada aqui", 400
+
+    total_clientes = con.execute("""
+        SELECT COUNT(*)
+        FROM clientes
+        WHERE barbeiro_id = ?
+    """, (utilizador_id,)).fetchone()[0]
+
+    total_marcacoes = con.execute("""
+        SELECT COUNT(*)
+        FROM marcacoes
+        WHERE barbeiro_id = ?
+    """, (utilizador_id,)).fetchone()[0]
+
+    if total_clientes or total_marcacoes:
+        con.close()
+        return (
+            "Este barbeiro tem histórico. "
+            "Desativa-o em vez de o apagar."
+        ), 409
+
+    con.execute(
+        "DELETE FROM utilizadores WHERE id = ?",
+        (utilizador_id,)
+    )
+
+    con.commit()
+    con.close()
+
+    return redirect(url_for("admin"))
+
+
+
+
+@app.route("/admin/produtos/novo", methods=["POST"])
+@requer_admin
+def admin_produto_novo():
+    nome = request.form.get("nome", "").strip()
+    descricao = request.form.get("descricao", "").strip()
+    imagem = request.form.get("imagem", "").strip()
+
+    try:
+        preco = float(
+            request.form.get("preco", "0")
+            .strip()
+            .replace(",", ".")
+        )
+    except ValueError:
+        return "Preço inválido", 400
+
+    if not nome or preco < 0:
+        return "Nome e preço válido são obrigatórios", 400
+
+    preco_pence = round(preco * 100)
+
+    con = get_db()
+
+    con.execute("""
+        INSERT INTO produtos_catalogo
+            (nome, descricao, preco_pence, imagem, ativo)
+        VALUES (?, ?, ?, ?, 1)
+    """, (
+        nome,
+        descricao or None,
+        preco_pence,
+        imagem or None,
+    ))
+
+    con.commit()
+    con.close()
+
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/produtos/<int:produto_id>/guardar", methods=["POST"])
+@requer_admin
+def admin_produto_guardar(produto_id):
+    nome = request.form.get("nome", "").strip()
+    descricao = request.form.get("descricao", "").strip()
+    imagem = request.form.get("imagem", "").strip()
+    ativo = 1 if request.form.get("ativo") == "1" else 0
+
+    try:
+        preco = float(
+            request.form.get("preco", "0")
+            .strip()
+            .replace(",", ".")
+        )
+    except ValueError:
+        return "Preço inválido", 400
+
+    if not nome or preco < 0:
+        return "Dados inválidos", 400
+
+    con = get_db()
+
+    existe = con.execute("""
+        SELECT id
+        FROM produtos_catalogo
+        WHERE id = ?
+    """, (produto_id,)).fetchone()
+
+    if not existe:
+        con.close()
+        return "Produto não encontrado", 404
+
+    con.execute("""
+        UPDATE produtos_catalogo
+        SET nome = ?,
+            descricao = ?,
+            preco_pence = ?,
+            imagem = ?,
+            ativo = ?,
+            atualizado_em = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (
+        nome,
+        descricao or None,
+        round(preco * 100),
+        imagem or None,
+        ativo,
+        produto_id,
+    ))
+
+    con.commit()
+    con.close()
+
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/produtos/<int:produto_id>/apagar", methods=["POST"])
+@requer_admin
+def admin_produto_apagar(produto_id):
+    con = get_db()
+
+    con.execute("""
+        DELETE FROM produtos_catalogo
+        WHERE id = ?
+    """, (produto_id,))
+
+    con.commit()
+    con.close()
+
+    return redirect(url_for("admin"))
+
 
 @app.route("/servicos")
 def servicos():
-    servicos_lista = [
-        {"nome": "Corte"},
-        {"nome": "Barba"},
-        {"nome": "Corte + Barba"},
-    ]
-    return render_template("servicos.html", servicos=servicos_lista)
+    con = get_db()
+
+    servicos_lista = con.execute("""
+        SELECT
+            id,
+            nome,
+            descricao,
+            duracao_minutos,
+            preco_pence
+        FROM servicos_catalogo
+        WHERE ativo = 1
+        ORDER BY nome COLLATE NOCASE
+    """).fetchall()
+
+    con.close()
+
+    return render_template(
+        "servicos.html",
+        servicos=servicos_lista,
+    )
+
+
+
+@app.route("/admin/servicos/novo", methods=["POST"])
+@requer_admin
+def admin_servico_novo():
+    nome = request.form.get("nome", "").strip()
+    descricao = request.form.get("descricao", "").strip()
+
+    try:
+        duracao = int(request.form.get("duracao", "30"))
+        preco = float(
+            request.form.get("preco", "0")
+            .strip()
+            .replace(",", ".")
+        )
+    except ValueError:
+        return "Duração ou preço inválido", 400
+
+    if not nome or duracao <= 0 or preco < 0:
+        return "Dados inválidos", 400
+
+    con = get_db()
+
+    con.execute("""
+        INSERT INTO servicos_catalogo
+        (nome, descricao, duracao_minutos, preco_pence, ativo)
+        VALUES (?, ?, ?, ?, 1)
+    """, (
+        nome,
+        descricao or None,
+        duracao,
+        round(preco * 100),
+    ))
+
+    con.commit()
+    con.close()
+
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/servicos/<int:servico_id>/guardar", methods=["POST"])
+@requer_admin
+def admin_servico_guardar(servico_id):
+    nome = request.form.get("nome", "").strip()
+    descricao = request.form.get("descricao", "").strip()
+    ativo = 1 if request.form.get("ativo") == "1" else 0
+
+    try:
+        duracao = int(request.form.get("duracao", "30"))
+        preco = float(
+            request.form.get("preco", "0")
+            .strip()
+            .replace(",", ".")
+        )
+    except ValueError:
+        return "Duração ou preço inválido", 400
+
+    if not nome or duracao <= 0 or preco < 0:
+        return "Dados inválidos", 400
+
+    con = get_db()
+
+    con.execute("""
+        UPDATE servicos_catalogo
+        SET nome = ?,
+            descricao = ?,
+            duracao_minutos = ?,
+            preco_pence = ?,
+            ativo = ?,
+            atualizado_em = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (
+        nome,
+        descricao or None,
+        duracao,
+        round(preco * 100),
+        ativo,
+        servico_id,
+    ))
+
+    con.commit()
+    con.close()
+
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/servicos/<int:servico_id>/apagar", methods=["POST"])
+@requer_admin
+def admin_servico_apagar(servico_id):
+    con = get_db()
+
+    con.execute(
+        "DELETE FROM servicos_catalogo WHERE id = ?",
+        (servico_id,)
+    )
+
+    con.commit()
+    con.close()
+
+    return redirect(url_for("admin"))
 
 
 @app.route("/produtos")
 def produtos():
-    produtos_lista = [
-        {
-            "nome": "Gel de cabelo",
-            "descricao": "Gel de fixação para styling diário.",
-            "preco": "8,00 €",
-            "imagem": "produto-gel-demo.svg",
-            "demo": True,
-        }
-    ]
-    return render_template("produtos.html", produtos=produtos_lista)
+    con = get_db()
 
+    rows = con.execute("""
+        SELECT id, nome, descricao, preco_pence, imagem
+        FROM produtos_catalogo
+        WHERE ativo = 1
+        ORDER BY nome COLLATE NOCASE
+    """).fetchall()
+
+    con.close()
+
+    produtos_lista = []
+
+    for row in rows:
+        preco = f"{row['preco_pence'] / 100:.2f}".replace(".", ",") + " £"
+
+        produtos_lista.append({
+            "id": row["id"],
+            "nome": row["nome"],
+            "descricao": row["descricao"] or "",
+            "preco": preco,
+            "imagem": row["imagem"] or "",
+        })
+
+    return render_template(
+        "produtos.html",
+        produtos=produtos_lista,
+    )
 
 @app.route("/definicoes", methods=["GET", "POST"])
 def definicoes():
@@ -1047,10 +2467,17 @@ def clientes():
 
     termo = f"%{pesquisa}%"
     con = get_db()
+    utilizador = utilizador_atual()
 
-    total_clientes = con.execute(
-        "SELECT COUNT(*) FROM clientes"
-    ).fetchone()[0]
+    if gestor():
+        total_clientes = con.execute(
+            "SELECT COUNT(*) FROM clientes"
+        ).fetchone()[0]
+    else:
+        total_clientes = con.execute(
+            "SELECT COUNT(*) FROM clientes WHERE barbeiro_id = ?",
+            (utilizador["id"],)
+        ).fetchone()[0]
 
     dias_inatividade = obter_dias_inatividade(con)
     limite_inatividade = (
@@ -1083,6 +2510,7 @@ def clientes():
            OR COALESCE(c.email, '') LIKE ? COLLATE NOCASE
            OR COALESCE(tp.numero, '') LIKE ?
            OR COALESCE(tp.numero_normalizado, '') LIKE ?)
+          AND (? = 1 OR c.barbeiro_id = ?)
         GROUP BY c.id
         HAVING (? = 0 OR (ultimo_corte IS NOT NULL AND ultimo_corte <= ?))
            AND (? IS NULL OR SUM(CASE WHEN m.estado = 'concluída' THEN 1 ELSE 0 END) > 0)
@@ -1095,6 +2523,7 @@ def clientes():
         LIMIT COALESCE(?, -1)
     """, (
         pesquisa, termo, termo, termo, termo,
+        1 if gestor() else 0, utilizador["id"],
         1 if apenas_inativos else 0, limite_inatividade,
         top_limite,
         top_limite,
@@ -1122,6 +2551,7 @@ def clientes():
         top_limite=top_limite,
         total_clientes=total_clientes,
         total_inativos=total_inativos,
+        utilizador=utilizador,
     )
 
 
@@ -1162,6 +2592,21 @@ def novo_cliente():
 
     con = get_db()
     cur = con.cursor()
+    utilizador = utilizador_atual()
+
+    barbeiro_id = request.form.get("barbeiro_id", type=int) if gestor() else utilizador["id"]
+
+    if not barbeiro_id:
+        barbeiro_id = utilizador["id"]
+
+    if gestor():
+        profissional = cur.execute(
+            "SELECT id FROM utilizadores WHERE id = ? AND ativo = 1",
+            (barbeiro_id,)
+        ).fetchone()
+        if not profissional:
+            con.close()
+            return "Barbeiro inválido", 400
 
     existente = cur.execute("""
         SELECT c.id
@@ -1179,9 +2624,9 @@ def novo_cliente():
 
     try:
         cur.execute("""
-            INSERT INTO clientes (nome, email, data_nascimento)
-            VALUES (?, ?, ?)
-        """, (nome, email or None, data_nascimento))
+            INSERT INTO clientes (nome, email, data_nascimento, barbeiro_id)
+            VALUES (?, ?, ?, ?)
+        """, (nome, email or None, data_nascimento, barbeiro_id))
 
         cliente_id = cur.lastrowid
 
@@ -1220,6 +2665,18 @@ def cliente_detalhe(cliente_id):
         con.close()
         return "Cliente não encontrado", 404
 
+    utilizador = utilizador_atual()
+
+    if not gestor():
+        dono = con.execute(
+            "SELECT barbeiro_id FROM clientes WHERE id = ?",
+            (cliente_id,)
+        ).fetchone()
+
+        if not dono or dono["barbeiro_id"] != utilizador["id"]:
+            con.close()
+            return "Cliente não encontrado", 404
+
     historico = con.execute("""
         SELECT id, inicio, duracao_minutos, servico, estado, observacoes
         FROM marcacoes
@@ -1252,6 +2709,169 @@ def cliente_detalhe(cliente_id):
         historico=historico,
         falta_ativa=falta_ativa,
     )
+
+
+
+
+@app.route("/clientes/<int:cliente_id>/editar", methods=["POST"])
+def cliente_editar(cliente_id):
+    con = get_db()
+
+    cliente = con.execute("""
+        SELECT *
+        FROM clientes
+        WHERE id = ?
+    """, (cliente_id,)).fetchone()
+
+    if not cliente:
+        con.close()
+        return "Cliente não encontrado", 404
+
+    if not pode_gerir_cliente(cliente):
+        con.close()
+        abort(403)
+
+    nome = request.form.get("nome", "").strip()
+    telefone = request.form.get("telefone", "").strip()
+    email = request.form.get("email", "").strip()
+
+    try:
+        data_nascimento = normalizar_data_nascimento(
+            request.form.get("data_nascimento", "")
+        )
+    except ValueError:
+        con.close()
+        return "Data de nascimento inválida", 400
+
+    if not nome or not telefone:
+        con.close()
+        return "Nome e telefone são obrigatórios", 400
+
+    numero_normalizado = normalizar_telefone(telefone)
+
+    if not numero_normalizado:
+        con.close()
+        return "Número de telefone inválido", 400
+
+    try:
+        con.execute("""
+            UPDATE clientes
+            SET nome = ?,
+                email = ?,
+                data_nascimento = ?,
+                atualizado_em = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (
+            nome,
+            email or None,
+            data_nascimento,
+            cliente_id,
+        ))
+
+        atual = con.execute("""
+            SELECT id
+            FROM telefones
+            WHERE cliente_id = ?
+              AND atual = 1
+            ORDER BY id DESC
+            LIMIT 1
+        """, (cliente_id,)).fetchone()
+
+        if atual:
+            con.execute("""
+                UPDATE telefones
+                SET numero = ?,
+                    numero_normalizado = ?
+                WHERE id = ?
+            """, (
+                telefone,
+                numero_normalizado,
+                atual["id"],
+            ))
+        else:
+            con.execute("""
+                INSERT INTO telefones
+                (cliente_id, numero, numero_normalizado, atual)
+                VALUES (?, ?, ?, 1)
+            """, (
+                cliente_id,
+                telefone,
+                numero_normalizado,
+            ))
+
+        con.commit()
+
+    except Exception:
+        con.rollback()
+        con.close()
+        raise
+
+    con.close()
+
+    return redirect(url_for(
+        "cliente_detalhe",
+        cliente_id=cliente_id,
+    ))
+
+
+@app.route("/clientes/<int:cliente_id>/apagar", methods=["POST"])
+def cliente_apagar(cliente_id):
+    con = get_db()
+
+    cliente = con.execute("""
+        SELECT *
+        FROM clientes
+        WHERE id = ?
+    """, (cliente_id,)).fetchone()
+
+    if not cliente:
+        con.close()
+        return "Cliente não encontrado", 404
+
+    if not pode_gerir_cliente(cliente):
+        con.close()
+        abort(403)
+
+    try:
+        # SMS relacionados com o cliente
+        if con.execute("""
+            SELECT 1
+            FROM sqlite_master
+            WHERE type='table' AND name='sms_fila'
+        """).fetchone():
+            con.execute(
+                "DELETE FROM sms_fila WHERE cliente_id = ?",
+                (cliente_id,)
+            )
+
+        # Marcações
+        con.execute(
+            "DELETE FROM marcacoes WHERE cliente_id = ?",
+            (cliente_id,)
+        )
+
+        # Telefones
+        con.execute(
+            "DELETE FROM telefones WHERE cliente_id = ?",
+            (cliente_id,)
+        )
+
+        # Cliente
+        con.execute(
+            "DELETE FROM clientes WHERE id = ?",
+            (cliente_id,)
+        )
+
+        con.commit()
+
+    except Exception:
+        con.rollback()
+        con.close()
+        raise
+
+    con.close()
+
+    return redirect(url_for("clientes"))
 
 
 @app.route("/api/clientes/por-telefone")
@@ -1360,10 +2980,14 @@ def nova_marcacao():
     observacoes = request.form.get("observacoes", "").strip() or None
     utilizador = utilizador_atual()
     barbeiro_id = request.form.get("barbeiro_id", type=int)
+
     if not barbeiro_id:
         barbeiro_id = utilizador["id"]
+
+    # Um barbeiro normal marca sempre na sua própria agenda.
+    # Gestor ou utilizador com permissão explícita pode marcar outro profissional.
     if not pode_marcar_para(barbeiro_id):
-        return "Barbeiro inválido", 403
+        barbeiro_id = utilizador["id"]
     inicio = request.form.get("inicio", "").strip()
     servico = ""
     try:
@@ -1382,6 +3006,12 @@ def nova_marcacao():
 
     con = get_db()
     concretizar_marcacoes_vencidas(con)
+
+    sms_config = obter_sms_barbeiro(con, barbeiro_id)
+    sms_ativo = sms_barbeiro_permitido(sms_config)
+
+    email_config = obter_email_barbeiro(con, barbeiro_id)
+    email_ativo = email_barbeiro_permitido(email_config)
     conflitos = con.execute("""
         SELECT m.inicio, m.duracao_minutos
         FROM marcacoes m
@@ -1398,7 +3028,10 @@ def nova_marcacao():
     try:
         cur = con.cursor()
         cliente = cur.execute("""
-            SELECT c.id, t.id AS telefone_id
+            SELECT
+                c.id,
+                c.email,
+                t.id AS telefone_id
             FROM telefones t
             JOIN clientes c ON c.id = t.cliente_id
             WHERE t.numero_normalizado = ? AND t.atual = 1
@@ -1408,6 +3041,7 @@ def nova_marcacao():
 
         if cliente:
             cliente_id = cliente["id"]
+            email_cliente = (cliente["email"] or "").strip()
             telefone_id = cliente["telefone_id"]
             cur.execute("""
                 UPDATE clientes
@@ -1419,15 +3053,18 @@ def nova_marcacao():
             """, (nome, email, email, data_nascimento, cliente_id))
         else:
             cur.execute("""
-                INSERT INTO clientes (nome, email, data_nascimento)
-                VALUES (?, ?, ?)
-            """, (nome, email or None, data_nascimento))
+                INSERT INTO clientes (nome, email, data_nascimento, barbeiro_id)
+                VALUES (?, ?, ?, ?)
+            """, (nome, email or None, data_nascimento, barbeiro_id))
             cliente_id = cur.lastrowid
             cur.execute("""
                 INSERT INTO telefones (cliente_id, numero, numero_normalizado)
                 VALUES (?, ?, ?)
             """, (cliente_id, telefone, numero_normalizado))
             telefone_id = cur.lastrowid
+
+        if not cliente:
+            email_cliente = (email or "").strip()
 
         cur.execute("""
             INSERT INTO marcacoes
@@ -1436,6 +3073,141 @@ def nova_marcacao():
         """, (cliente_id, inicio, duracao, servico, observacoes, barbeiro_id, utilizador["id"]))
         marcacao_id = cur.lastrowid
 
+        # -------------------------------------------------
+        # EMAIL — confirmação e lembretes por barbeiro
+        # -------------------------------------------------
+        if email_ativo and email_cliente:
+            data_formatada_email = novo_inicio.strftime("%d/%m/%Y")
+            hora_formatada_email = novo_inicio.strftime("%H:%M")
+
+            barbeiro_nome = (
+                email_config["nome"]
+                if email_config
+                else ""
+            )
+
+            dados_modelo = {
+                "cliente": nome,
+                "barbeiro": barbeiro_nome,
+                "data": data_formatada_email,
+                "hora": hora_formatada_email,
+                "servico": servico or "",
+            }
+
+            # Confirmação
+            if email_config["email_confirmacao"]:
+                modelo = renderizar_modelo_comunicacao(
+                    con,
+                    "email_confirmacao",
+                    **dados_modelo
+                )
+
+                if modelo:
+                    cur.execute("""
+                        INSERT OR IGNORE INTO email_fila
+                        (
+                            cliente_id,
+                            marcacao_id,
+                            barbeiro_id,
+                            email_destino,
+                            tipo,
+                            assunto,
+                            mensagem,
+                            estado,
+                            previsto_para,
+                            idempotency_key
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?)
+                    """, (
+                        cliente_id,
+                        marcacao_id,
+                        barbeiro_id,
+                        email_cliente,
+                        "confirmacao",
+                        modelo["assunto"] or "Marcação confirmada",
+                        modelo["conteudo"],
+                        datetime.now().isoformat(timespec="seconds"),
+                        f"email_confirmacao:{marcacao_id}",
+                    ))
+
+            # Lembrete 24h
+            if email_config["email_lembrete_24h"]:
+                previsto_email_24h = novo_inicio - timedelta(hours=24)
+
+                if previsto_email_24h > datetime.now():
+                    modelo = renderizar_modelo_comunicacao(
+                        con,
+                        "email_lembrete_24h",
+                        **dados_modelo
+                    )
+
+                    if modelo:
+                        cur.execute("""
+                            INSERT OR IGNORE INTO email_fila
+                            (
+                                cliente_id,
+                                marcacao_id,
+                                barbeiro_id,
+                                email_destino,
+                                tipo,
+                                assunto,
+                                mensagem,
+                                estado,
+                                previsto_para,
+                                idempotency_key
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?)
+                        """, (
+                            cliente_id,
+                            marcacao_id,
+                            barbeiro_id,
+                            email_cliente,
+                            "lembrete_24h",
+                            modelo["assunto"] or "Lembrete de marcação",
+                            modelo["conteudo"],
+                            previsto_email_24h.isoformat(timespec="seconds"),
+                            f"email_lembrete_24h:{marcacao_id}",
+                        ))
+
+            # Lembrete 1h
+            if email_config["email_lembrete_1h"]:
+                previsto_email_1h = novo_inicio - timedelta(hours=1)
+
+                if previsto_email_1h > datetime.now():
+                    modelo = renderizar_modelo_comunicacao(
+                        con,
+                        "email_lembrete_1h",
+                        **dados_modelo
+                    )
+
+                    if modelo:
+                        cur.execute("""
+                            INSERT OR IGNORE INTO email_fila
+                            (
+                                cliente_id,
+                                marcacao_id,
+                                barbeiro_id,
+                                email_destino,
+                                tipo,
+                                assunto,
+                                mensagem,
+                                estado,
+                                previsto_para,
+                                idempotency_key
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?)
+                        """, (
+                            cliente_id,
+                            marcacao_id,
+                            barbeiro_id,
+                            email_cliente,
+                            "lembrete_1h",
+                            modelo["assunto"] or "Lembrete de marcação",
+                            modelo["conteudo"],
+                            previsto_email_1h.isoformat(timespec="seconds"),
+                            f"email_lembrete_1h:{marcacao_id}",
+                        ))
+
         # Lembrete por SMS às 18:00 do dia anterior.
         # Só é criado se essa hora ainda estiver no futuro.
         previsto_para = datetime.combine(
@@ -1443,7 +3215,7 @@ def nova_marcacao():
             datetime.strptime("18:00", "%H:%M").time()
         )
 
-        if previsto_para > datetime.now():
+        if sms_ativo and previsto_para > datetime.now():
             data_formatada = novo_inicio.strftime("%d/%m/%Y")
             hora_formatada = novo_inicio.strftime("%H:%M")
 
@@ -1483,7 +3255,8 @@ def nova_marcacao():
         f"Data: {data_formatada}. Hora: {hora_formatada}."
     )
 
-    enviar_sms_smsgate(telefone, texto_sms)
+    if sms_ativo:
+        enviar_sms_do_barbeiro(barbeiro_id, telefone, texto_sms)
 
     return redirect(url_for("semana", data=novo_inicio.date().isoformat()))
 
@@ -1606,4 +3379,4 @@ garantir_esquema()
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=False)
+    app.run(host="0.0.0.0", port=5003, debug=False)

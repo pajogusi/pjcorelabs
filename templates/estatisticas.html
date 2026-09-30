@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Estatísticas — Blessed</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='estatisticas.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='screensaver.css') }}">
+</head>
+
+<body>
+
+<div class="app app-semana">
+<div class="estrutura-semana">
+
+<aside class="lateral-marca">
+
+    <div class="marca marca-lateral">
+        <img src="{{ url_for('static', filename='blessed-logo.png') }}"
+             alt="Barbearia Blessed"
+             class="logo-blessed">
+    </div>
+
+    <nav class="menu-principal">
+
+        <a href="/semana" class="menu-item">
+            <span class="menu-icone">▣</span>
+            <span>Agenda</span>
+        </a>
+
+        <a href="/clientes" class="menu-item">
+            <span class="menu-icone">♙</span>
+            <span>Clientes</span>
+        </a>
+
+        {% if utilizador.papel == 'gestor' %}
+        <a href="/servicos" class="menu-item">
+            <span class="menu-icone">✂</span>
+            <span>Serviços</span>
+        </a>
+
+        <a href="/produtos" class="menu-item">
+            <span class="menu-icone">▤</span>
+            <span>Produtos</span>
+        </a>
+
+        <a href="/comunicacoes" class="menu-item">
+            <span class="menu-icone">✉</span>
+            <span>Comunicações</span>
+        </a>
+        {% endif %}
+
+        <a href="/estatisticas" class="menu-item ativo">
+            <span class="menu-icone">📊</span>
+            <span>Estatísticas</span>
+        </a>
+
+        {% if utilizador.papel == 'gestor' %}
+        <a href="/definicoes" class="menu-item">
+            <span class="menu-icone">⚙</span>
+            <span>Definições</span>
+        </a>
+        {% endif %}
+
+    </nav>
+
+</aside>
+
+
+<main class="main-semana estatisticas-main">
+
+    <section class="estatisticas-topo">
+        <div>
+            <h1>Estatísticas</h1>
+            <p>Cortes concluídos</p>
+        </div>
+
+        {% if utilizador.papel == 'gestor' %}
+        <form method="get" class="estatisticas-barbeiro">
+            <label>
+                Estatísticas:
+                <select name="barbeiro" onchange="this.form.submit()">
+
+                    {% for barbeiro in barbeiros %}
+                        {% if barbeiro.username == 'bruno' %}
+                        <option value="{{ barbeiro.id }}"
+                            {% if barbeiro_selecionado == barbeiro.id %}selected{% endif %}>
+                            {{ barbeiro.nome }}
+                        </option>
+                        {% endif %}
+                    {% endfor %}
+
+                    <option value="todos"
+                        {% if barbeiro_selecionado is none %}selected{% endif %}>
+                        Todos
+                    </option>
+
+                    {% for barbeiro in barbeiros %}
+                        {% if barbeiro.username != 'bruno' %}
+                        <option value="{{ barbeiro.id }}"
+                            {% if barbeiro_selecionado == barbeiro.id %}selected{% endif %}>
+                            {{ barbeiro.nome }}
+                        </option>
+                        {% endif %}
+                    {% endfor %}
+
+                </select>
+            </label>
+        </form>
+        {% endif %}
+    </section>
+
+
+    <section class="estatisticas-resumo">
+
+        <article>
+            <span>Hoje</span>
+            <strong>{{ estatisticas.hoje }}</strong>
+        </article>
+
+        <article>
+            <span>Esta semana</span>
+            <strong>{{ estatisticas.semana }}</strong>
+        </article>
+
+        <article>
+            <span>Este mês</span>
+            <strong>{{ estatisticas.mes }}</strong>
+        </article>
+
+        <article>
+            <span>Este ano</span>
+            <strong>{{ estatisticas.ano }}</strong>
+        </article>
+
+    </section>
+
+    {% if historico_mensal %}
+    <section class="historico-cortes">
+        <h2>Histórico mensal</h2>
+
+        <div class="historico-cortes-lista">
+            {% set nomes_meses = {
+                '01':'Janeiro',
+                '02':'Fevereiro',
+                '03':'Março',
+                '04':'Abril',
+                '05':'Maio',
+                '06':'Junho',
+                '07':'Julho',
+                '08':'Agosto',
+                '09':'Setembro',
+                '10':'Outubro',
+                '11':'Novembro',
+                '12':'Dezembro'
+            } %}
+
+            {% for linha in historico_mensal %}
+                {% set partes = linha.mes.split('-') %}
+                <article>
+                    <span>{{ nomes_meses[partes[1]] }} {{ partes[0] }}</span>
+                    <strong>{{ linha.total }}</strong>
+                </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+</main>
+
+</div>
+</div>
+
+<script src="{{ url_for('static', filename='screensaver.js') }}"></script>
+
+</body>
+</html>

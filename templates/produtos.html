@@ -53,8 +53,12 @@
         {% for produto in produtos %}
         <article class="produto-card" data-nome="{{ produto.nome|lower }}">
             <div class="produto-imagem">
-                <img src="{{ url_for('static', filename=produto.imagem) }}" alt="{{ produto.nome }}">
-                {% if produto.demo %}<span class="produto-demo">DEMONSTRAÇÃO</span>{% endif %}
+                {% if produto.imagem %}
+                <img src="{{ url_for('static', filename=produto.imagem) }}"
+                     alt="{{ produto.nome }}">
+                {% else %}
+                <div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:34px;">▤</div>
+                {% endif %}
             </div>
 
             <div class="produto-info">
@@ -66,9 +70,7 @@
         {% endfor %}
     </section>
 
-    <div class="nota-demo">
-        Produto de demonstração. Depois serão adicionados os produtos e preços reais indicados pelo Bruno.
-    </div>
+    
 </main>
 
 </div>
