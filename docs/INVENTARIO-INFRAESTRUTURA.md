@@ -41,3 +41,15 @@ Atualizado: 2026-10-01. Registar apenas informações verificadas; distinguir hi
 - Páginas autónomas erradas `pjcore-agenda.html` e `pjcore-agenda-demo.html` eliminadas.
 - Não divulgar preços nem condições comerciais até confirmar a apresentação final.
 - **Por confirmar:** se o Cloudflare publica automaticamente o conteúdo de `website/`; verificar no painel e testar site público após deploy.
+
+## Software comercial — estrutura confirmada 2026-10-01
+
+- Nova secção `Software` no menu principal e na página de Projetos.
+- Catálogo `website/pages/software.html` com duas utilizações do PJCore Agenda: barbearias e profissionais de manicura/pedicura.
+- Páginas de produto: `website/pages/agenda-barbers.html` e `website/pages/agenda-nails.html`, cada uma com simulação própria (serviços adequados à atividade) e preçário **por baixo**.
+- Simulação partilhada `website/js/projects-demo.js`; traduções PT/EN `website/js/language.js`; estilos `website/css/style.css`.
+- Plano Basic: €10/mês em PT; £12/mês em EN; 200 SMS/mês; teste de 15 dias e 50 SMS; extras de 100 SMS a €2 (equivalente GBP **não definido**, confirmar antes de apresentar outro valor).
+- Pedidos de teste por email; **não existe ativação automática** implementada nesta página.
+- Demonstração simplificada e fictícia: não representa todas as funcionalidades comerciais, não envia SMS nem tem ligação à base de dados real.
+- Página `website/pages/chairflow.html` mantida como legado sem link no portefólio; não eliminar sem confirmação.
+- Publicação Cloudflare: confirmar visualmente as novas rotas após deploy.
