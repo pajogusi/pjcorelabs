@@ -514,3 +514,14 @@
     }
 }
 
+
+/* Ícones alinhados com Blessed Bruno, mantendo o CSS da Multi-users. */
+.menu-principal .menu-icone[class*="icone-"] {width:24px;height:24px;flex:0 0 24px;display:inline-block;background-color:currentColor;-webkit-mask-position:center;mask-position:center;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-size:21px 21px;mask-size:21px 21px;}
+.menu-principal .icone-agenda{-webkit-mask-image:url("/static/icons/agenda.svg");mask-image:url("/static/icons/agenda.svg");}
+.menu-principal .icone-clientes{-webkit-mask-image:url("/static/icons/clientes.svg");mask-image:url("/static/icons/clientes.svg");}
+.menu-principal .icone-servicos{-webkit-mask-image:url("/static/icons/servicos.svg");mask-image:url("/static/icons/servicos.svg");}
+.menu-principal .icone-produtos{-webkit-mask-image:url("/static/icons/produtos.svg");mask-image:url("/static/icons/produtos.svg");}
+.menu-principal .icone-comunicacoes{-webkit-mask-image:url("/static/icons/comunicacoes.svg");mask-image:url("/static/icons/comunicacoes.svg");}
+.menu-principal .icone-estatisticas{-webkit-mask-image:url("/static/icons/estatisticas.svg");mask-image:url("/static/icons/estatisticas.svg");}
+.menu-principal .icone-definicoes{-webkit-mask-image:url("/static/icons/definicoes.svg");mask-image:url("/static/icons/definicoes.svg");}
+.menu-principal .icone-atualizar{-webkit-mask-image:url("/static/icons/atualizar.svg");mask-image:url("/static/icons/atualizar.svg");}
