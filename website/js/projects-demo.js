@@ -11,6 +11,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const dateString = d => [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
   $('demo-date').value = dateString(tomorrow);
   let bookings = [], editing = null, sequence = 1;
+  const mondayOf = d => {const result=new Date(d.getFullYear(),d.getMonth(),d.getDate());result.setDate(result.getDate()-(result.getDay()+6)%7);return result;};
+  let weekStart=mondayOf(tomorrow);
+  const moveWeek = delta => {weekStart.setDate(weekStart.getDate()+delta*7);render();};
+  $('week-prev').addEventListener('click',()=>moveWeek(-1));
+  $('week-next').addEventListener('click',()=>moveWeek(1));
+  $('week-today').addEventListener('click',()=>{weekStart=mondayOf(new Date());render();});
+  function renderWeek(){
+    const grid=$('week-grid');grid.replaceChildren();
+    const last=new Date(weekStart);last.setDate(last.getDate()+6);
+    const locale=document.documentElement.lang==='pt'?'pt-PT':'en-GB';
+    const format=new Intl.DateTimeFormat(locale,{day:'numeric',month:'short'});
+    $('week-range').textContent=format.format(weekStart)+' – '+format.format(last);
+    for(let i=0;i<7;i++){
+      const date=new Date(weekStart);date.setDate(date.getDate()+i);
+      const iso=dateString(date);
+      const col=document.createElement('div');col.className='demo-week-day';
+      const label=document.createElement('h4');label.textContent=new Intl.DateTimeFormat(locale,{weekday:'short',day:'numeric'}).format(date);col.append(label);
+      const dayBookings=bookings.filter(b=>b.date===iso).sort((a,b)=>a.time.localeCompare(b.time));
+      if(!dayBookings.length){const empty=document.createElement('p');empty.className='week-empty';empty.textContent=tr('weekEmpty','No bookings');col.append(empty);}
+      for(const b of dayBookings){const event=document.createElement('button');event.type='button';event.className='week-event';event.textContent=b.time+' '+b.name;event.title=tr(serviceKey[b.service],b.service);event.addEventListener('click',()=>{editing=b.id;$('demo-customer').value=b.name;$('demo-service').value=b.service;$('demo-date').value=b.date;$('demo-time').value=b.time;$('demo-submit').textContent=tr('demoSave','Save changes');$('demo-form').scrollIntoView({behavior:'smooth',block:'center'});});col.append(event);}
+      const add=document.createElement('button');add.type='button';add.className='week-add';add.textContent=tr('weekAdd','+ Booking');add.addEventListener('click',()=>{reset();$('demo-date').value=iso;$('demo-form').scrollIntoView({behavior:'smooth',block:'center'});});col.append(add);grid.append(col);
+    }
+  }
   function notify(key, fallback) { $('demo-notice').textContent = tr(key, fallback); }
   function reset() { editing = null; $('demo-form').reset(); $('demo-date').value = dateString(tomorrow); $('demo-submit').textContent = tr('demoCreate','Create appointment'); }
   function action(label, fn) { const b=document.createElement('button'); b.type='button'; b.textContent=label; b.addEventListener('click',fn); return b; }
@@ -27,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
       action(tr('demoCancel','Cancel'),()=>{bookings=bookings.filter(b=>b.id!==item.id);if(editing===item.id)reset();notify('demoCancelled','Appointment cancelled.');render();}),
       action(tr('demoSms','Preview SMS'),()=>{const text=tr('demoSmsText','Demo only: appointment confirmed for');$('demo-notice').textContent=text+' '+item.name+' — '+item.date+' '+item.time+'. '+tr('demoNoSms','No SMS sent.');}));card.append(controls);list.append(card);
     });
+    renderWeek();
     const history=$('demo-history');history.replaceChildren();
     const matches=sorted.filter(b=>b.name===$('demo-history-customer').value);
     const p=document.createElement('p');p.textContent=matches.length?matches.map(b=>b.date+' '+b.time+' · '+tr(serviceKey[b.service],b.service)).join(' | '):tr('demoNoHistory','No appointments for this customer.');history.append(p);
