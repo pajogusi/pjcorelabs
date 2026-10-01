@@ -589,6 +589,8 @@ const translations = {
 };
 
 function detectLanguage() {
+  const requested = new URLSearchParams(window.location.search).get("lang");
+  if (requested === "pt" || requested === "en") return requested;
   const saved = localStorage.getItem("pjcorelabs-language");
   if (saved) return saved;
 
