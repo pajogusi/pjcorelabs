@@ -19,7 +19,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("BLESSED_SECRET_KEY", "blessed-multiuser-test-only")
 
-DB = Path(__file__).with_name("blessed.db")
+DB = Path(os.environ.get("BLESSED_DB", str(Path(__file__).with_name("blessed.db")))).expanduser()
 
 LOG_EMAIL_DESTINO = "pajogusi.uk@gmail.com"
 LOG_LOTE_TAMANHO = 10
