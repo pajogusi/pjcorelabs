@@ -673,3 +673,18 @@ p {
   width: 100%;
   height: auto;
 }
+
+/* Embedded project simulation */
+.project-demo{margin-top:4rem;padding-top:3rem;border-top:1px solid var(--border)}
+.demo-columns{display:grid;grid-template-columns:minmax(260px,360px) minmax(0,1fr);gap:1.2rem;margin-top:2rem}
+.demo-box{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:1.5rem;min-width:0}
+.demo-box label{display:block;color:var(--muted);margin:.8rem 0 .3rem}
+.demo-box input,.demo-box select{width:100%;padding:.7rem;background:#101725;color:white;border:1px solid #46536a;border-radius:8px;font:inherit}
+.demo-box .button{cursor:pointer;margin:.9rem .4rem 0 0}
+.demo-appointment{border:1px solid var(--border);border-radius:12px;padding:1rem;margin:.7rem 0;background:var(--bg-soft)}
+.demo-appointment p{margin:.3rem 0;font-size:.95rem}
+.demo-actions{display:flex;gap:.5rem;flex-wrap:wrap}
+.demo-actions button{padding:.45rem .65rem;border:1px solid #53647a;border-radius:8px;background:#202d41;color:white;cursor:pointer}
+.demo-disclaimer{font-size:.85rem;margin-top:1rem}
+#demo-notice{min-height:1.4rem;color:#8fe9c7;font-size:.95rem}
+@media(max-width:760px){.demo-columns{grid-template-columns:1fr}}
