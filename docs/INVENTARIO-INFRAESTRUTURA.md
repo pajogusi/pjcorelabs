@@ -17,12 +17,12 @@ Atualizado: 2026-10-01. Registar apenas informações verificadas; distinguir hi
 ## Página institucional pjcorelabs.com
 
 - O domínio principal **não está configurado** nas rotas do túnel Cloudflare do Sentinela acima.
-- O repositório GitHub `pajogusi/pjcorelabs` existe, ramo `main`, e continha README institucional; não foram encontrados `index.html` ou `package.json` na raiz na verificação de 2026-10-01.
-- **Alojamento e origem do deploy ainda não confirmados.** Cloudflare Pages é hipótese, não facto. Antes de atualizar a página, confirmar em Cloudflare o projeto Pages/Workers, domínio personalizado, origem Git e pasta de deploy. Não editar Sentinela às cegas.
+- O repositório GitHub `pajogusi/pjcorelabs` existe, ramo `main`, e continha README institucional; a página está na subpasta `website/`, não na raiz: `website/index.html`, `website/pages/chairflow.html`, `website/css/style.css` e `website/js/language.js` (confirmado no GitHub em 2026-10-01).
+- **Código-fonte localizado no GitHub:** `pajogusi/pjcorelabs/website/`. O alojamento e o mecanismo de deploy ainda não estão confirmados. Antes de assumir publicação automática, confirmar em Cloudflare projeto Pages/Workers, domínio e origem Git. Não editar Sentinela às cegas.
 
 ## Próximo trabalho
 
-- Identificar alojamento real de `pjcorelabs.com`.
+- Código-fonte identificado: `website/` no repositório `pajogusi/pjcorelabs`. Confirmar alojamento real de `pjcorelabs.com` e configuração de deploy.
 - Identificar repositório/fonte e mecanismo de publicação da página.
 - Só então atualizar o site institucional com o produto acordado, após confirmar o texto e as condições comerciais atuais.
 
