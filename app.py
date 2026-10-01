@@ -349,6 +349,7 @@ def pode_consultar_agenda(barbeiro_id):
     utilizador = utilizador_atual()
     return bool(utilizador and (
         utilizador["papel"] == "gestor"
+        or utilizador["e_admin"]
         or utilizador["id"] == barbeiro_id
         or utilizador["pode_consultar_agendas"]
     ))
@@ -1142,7 +1143,7 @@ def semana():
     ).fetchall()
     barbeiro_pedido = request.args.get("barbeiro", "").strip()
 
-    if barbeiro_pedido == "todos" and utilizador["papel"] == "gestor":
+    if barbeiro_pedido == "todos" and (utilizador["papel"] == "gestor" or utilizador["e_admin"]):
         barbeiro_id = None
     elif barbeiro_pedido.isdigit() and any(b["id"] == int(barbeiro_pedido) for b in barbeiros) and pode_consultar_agenda(int(barbeiro_pedido)):
         barbeiro_id = int(barbeiro_pedido)
@@ -1293,7 +1294,7 @@ def estatisticas():
 
     barbeiro_pedido = request.args.get("barbeiro", "").strip()
 
-    if utilizador["papel"] == "gestor":
+    if utilizador["papel"] == "gestor" or utilizador["e_admin"]:
         if barbeiro_pedido == "todos":
             barbeiro_id = None
         elif barbeiro_pedido.isdigit() and any(
