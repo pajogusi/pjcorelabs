@@ -36,7 +36,7 @@ const translations = {
     trialTitle: "🎁 15 dias grátis para experimentar",
     trialText: "Durante o período experimental tens acesso às funcionalidades do Plano Basic e 50 SMS incluídos, sem compromisso.",
     trialSetup: "Antes de começares, configuramos os teus serviços, respetivas durações e horários de funcionamento, para receberes a agenda já preparada para utilizar.",
-    trialAfter: "Após os 15 dias, se gostares e quiseres continuar, o valor será de €10 por mês. Caso contrário, não existe qualquer compromisso.",
+    trialAfter: "Após os 15 dias, se gostares e quiseres continuar, podes escolher €10 por mês, €55 por 6 meses ou €105 por ano. Caso contrário, não existe qualquer compromisso.",
     trialButton: "Pedir período experimental",
     svcManicure: "Manicura",
     svcPedicure: "Pedicura",
