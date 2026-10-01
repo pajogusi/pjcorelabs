@@ -331,7 +331,7 @@ const translations = {
     trialTitle: "🎁 Try it free for 15 days",
     trialText: "During your trial, you have access to all Basic Plan features and 50 SMS included, with no obligation.",
     trialSetup: "Before you start, we configure your services, their durations and your opening hours so your agenda is ready to use.",
-    trialAfter: "After 15 days, continue for £12 per month if you wish. Otherwise, there is no commitment.",
+    trialAfter: "After 15 days, choose £12 per month, £66 for 6 months or £126 per year if you wish. Otherwise, there is no commitment.",
     trialButton: "Request your free trial",
     svcManicure: "Manicure",
     svcPedicure: "Pedicure",
@@ -608,7 +608,8 @@ function detectLanguage() {
 function setLanguage(lang) {
   localStorage.setItem("pjcorelabs-language", lang);
   document.documentElement.lang = lang;
-  document.querySelectorAll('[data-pt-subscriptions]').forEach(e => e.hidden = lang !== 'pt');
+  const prices = lang === "pt" ? {month:"€10",six:"€55",year:"€105"} : {month:"£12",six:"£66",year:"£126"};
+  document.querySelectorAll("[data-sub-price]").forEach(e => { e.textContent = prices[e.dataset.subPrice]; });
   document.querySelectorAll('[data-price-pt]').forEach(e => e.hidden = lang !== 'pt');
   document.querySelectorAll('[data-price-en]').forEach(e => e.hidden = lang !== 'en');
 
