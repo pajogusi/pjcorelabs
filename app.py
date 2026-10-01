@@ -687,7 +687,8 @@ def registar_atividade_site(response):
             ))
             con.commit()
 
-            _enviar_lote_atividades(con)
+            # Multi-users: guardar atividade localmente sem enviar logs por email.
+            # O envio fica suspenso até decisão explícita de reativação.
             con.close()
 
     except Exception as erro:
