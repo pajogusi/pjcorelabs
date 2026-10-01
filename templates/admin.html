@@ -209,19 +209,24 @@ button {
 
 <section class="admin-caixa admin-tab-painel" id="admin-logs" data-admin-tab="logs">
     <h2>Logs de atividade</h2>
-    <p style="opacity:.75">Últimos {{ logs_admin|length }} registos guardados localmente. O envio por email está <strong>{{ 'LIGADO' if logs_email_ativo else 'DESLIGADO' }}</strong>.</p>
-    <form method="post" action="/admin/logs/email" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
-        <input type="hidden" name="ativo" value="{{ '0' if logs_email_ativo else '1' }}">
-        <button class="{{ 'admin-apagar' if logs_email_ativo else 'admin-guardar' }}" type="submit">{{ 'Desligar envio por email' if logs_email_ativo else 'Ligar envio por email' }}</button>
+    <p style="opacity:.75">Últimos {{ logs_admin|length }} registos guardados localmente. O envio por email é manual.</p>
+    <form method="post" action="/admin/logs/enviar" class="utilizador-card" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+        <label>Enviar por
+            <select name="modo" id="logs-modo"><option value="lote">Lote</option><option value="datas">Entre datas</option></select>
+        </label>
+        <label id="logs-lote">Quantidade
+            <select name="lote"><option value="50">50</option><option value="100">100</option><option value="150">150</option></select>
+        </label>
+        <label class="logs-datas" hidden>De <input type="date" name="data_inicio"></label>
+        <label class="logs-datas" hidden>Até <input type="date" name="data_fim"></label>
+        <button class="admin-guardar" type="submit">Enviar logs por email</button>
         <span style="opacity:.7">Destino: {{ logs_email_destino }}</span>
     </form>
     <div style="overflow:auto;max-height:560px;border:1px solid #303030;border-radius:8px">
-        <table style="width:100%;border-collapse:collapse;min-width:760px">
-            <thead><tr><th style="padding:8px;text-align:left">Data/Hora</th><th style="padding:8px;text-align:left">Método</th><th style="padding:8px;text-align:left">Caminho</th><th style="padding:8px;text-align:left">HTTP</th><th style="padding:8px;text-align:left">IP</th><th style="padding:8px;text-align:left">Email</th></tr></thead>
-            <tbody>{% for log in logs_admin %}<tr style="border-top:1px solid #252525"><td style="padding:8px;white-space:nowrap">{{ log.criado_em }}</td><td style="padding:8px">{{ log.metodo }}</td><td style="padding:8px">{{ log.caminho }}</td><td style="padding:8px">{{ log.estado_http }}</td><td style="padding:8px">{{ log.ip or '—' }}</td><td style="padding:8px">{{ log.enviado_em or 'Pendente' }}</td></tr>{% else %}<tr><td colspan="6" style="padding:14px">Ainda não existem logs.</td></tr>{% endfor %}</tbody>
-        </table>
+        <table style="width:100%;border-collapse:collapse;min-width:760px"><thead><tr><th style="padding:8px;text-align:left">Data/Hora</th><th style="padding:8px;text-align:left">Método</th><th style="padding:8px;text-align:left">Caminho</th><th style="padding:8px;text-align:left">HTTP</th><th style="padding:8px;text-align:left">IP</th><th style="padding:8px;text-align:left">Email</th></tr></thead><tbody>{% for log in logs_admin %}<tr style="border-top:1px solid #252525"><td style="padding:8px;white-space:nowrap">{{ log.criado_em }}</td><td style="padding:8px">{{ log.metodo }}</td><td style="padding:8px">{{ log.caminho }}</td><td style="padding:8px">{{ log.estado_http }}</td><td style="padding:8px">{{ log.ip or '—' }}</td><td style="padding:8px">{{ log.enviado_em or 'Não enviado' }}</td></tr>{% else %}<tr><td colspan="6" style="padding:14px">Ainda não existem logs.</td></tr>{% endfor %}</tbody></table>
     </div>
 </section>
+<script>document.addEventListener('DOMContentLoaded',()=>{const m=document.getElementById('logs-modo'),l=document.getElementById('logs-lote'),d=[...document.querySelectorAll('.logs-datas')];if(!m)return;const u=()=>{const datas=m.value==='datas';l.hidden=datas;d.forEach(x=>x.hidden=!datas)};m.addEventListener('change',u);u()});</script>
 
 <section class="admin-caixa admin-tab-painel" data-admin-tab="utilizadores">
 
