@@ -108,7 +108,7 @@
 
             <section class="agenda-semanal {% if barbeiro_selecionado is none %}agenda-todos{% endif %}">
                 <div class="agenda-cabecalho">
-                    <div class="cabecalho-hora"></div>
+                    <div class="cabecalho-hora"><strong class="barbeiro-logado">{{ utilizador.nome }}</strong></div>
                     {% for dia in dias %}<div class="agenda-dia"><strong>{{ dia.nome }} ({{ dia.total }})</strong><span>{{ dia.data[8:10] }}/{{ dia.data[5:7] }}</span></div>{% endfor %}
                 </div>
                 <div class="agenda-corpo">
