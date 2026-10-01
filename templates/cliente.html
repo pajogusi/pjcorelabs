@@ -136,7 +136,7 @@
                     <article class="historico-item">
                         <div>
                             <strong>{{ m.inicio|data_pt }} · {{ m.inicio[11:16] }}</strong>
-                            <span>{{ m.servico }} · {{ m.duracao_minutos }} min</span>
+                            <span>{{ m.servico }} · {{ m.duracao_minutos }} min{% if m.barbeiro_nome %} · {{ m.barbeiro_nome }}{% endif %}</span>
                             {% if m.observacoes %}<small>{{ m.observacoes }}</small>{% endif %}
                         </div>
                         <span class="historico-estado estado-texto-{{ m.estado }}">{{ m.estado }}</span>
