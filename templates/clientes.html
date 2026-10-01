@@ -77,7 +77,7 @@
                         {% if top_limite %}<span class="top-posicao">#{{ loop.index }}</span>{% endif %}
                         <div class="cliente-identidade">
                             <strong class="{% if cliente.id in clientes_falta_ativa %}cliente-nome-falta{% endif %}">{{ cliente.nome }}</strong>
-                            {% if utilizador.papel == 'gestor' %}
+                            {% if utilizador.papel == 'gestor' or utilizador.e_admin %}
                             <span class="cliente-barbeiro-label barbeiro-{{ cliente.barbeiro_username or 'sem-dono' }}">
                                 {{ cliente.barbeiro_nome or 'Sem barbeiro' }}
                             </span>
