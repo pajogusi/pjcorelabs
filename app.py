@@ -23,7 +23,6 @@ DB = Path(os.environ.get("BLESSED_DB", str(Path(__file__).with_name("blessed.db"
 
 LOG_EMAIL_DESTINO = "pajogusi.uk@gmail.com"
 LOG_LOTE_TAMANHO = 10
-LOG_EMAIL_ATIVO_CHAVE = "logs_email_ativo"
 LOG_LOCK = threading.Lock()
 
 
@@ -610,76 +609,23 @@ def normalizar_data_nascimento(valor):
 
 
 
-def _logs_email_ativo(con):
-    row = con.execute("SELECT valor FROM definicoes WHERE chave = ?", (LOG_EMAIL_ATIVO_CHAVE,)).fetchone()
-    return bool(row and str(row["valor"]).strip() == "1")
-
-
-def _enviar_lote_atividades(con):
-    if not _logs_email_ativo(con):
-        return
-
-    rows = con.execute("""
-        SELECT id, criado_em, metodo, caminho, estado_http, ip
-        FROM atividade_log
-        WHERE enviado_em IS NULL
-        ORDER BY id
-        LIMIT ?
-    """, (LOG_LOTE_TAMANHO,)).fetchall()
-
-    if len(rows) < LOG_LOTE_TAMANHO:
-        return
-
+def _enviar_logs_email(rows, descricao):
+    if not rows:
+        return False
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow([
-        "ID",
-        "Data/Hora",
-        "Metodo",
-        "Caminho",
-        "HTTP",
-        "IP",
-    ])
-
+    writer.writerow(["ID", "Data/Hora", "Metodo", "Caminho", "HTTP", "IP"])
     for row in rows:
-        writer.writerow([
-            row["id"],
-            row["criado_em"],
-            row["metodo"],
-            row["caminho"],
-            row["estado_http"],
-            row["ip"] or "",
-        ])
-
+        writer.writerow([row["id"], row["criado_em"], row["metodo"], row["caminho"], row["estado_http"], row["ip"] or ""])
     agora = datetime.now().astimezone()
     nome = agora.strftime("blessed-atividades-%Y%m%d-%H%M%S.csv")
-
-    enviado = enviar_email_brevo(
+    return enviar_email_brevo(
         LOG_EMAIL_DESTINO,
-        "Blessed — log de 10 atividades",
-        (
-            "Segue em anexo o lote automático das últimas "
-            f"{LOG_LOTE_TAMANHO} atividades registadas no Blessed."
-        ),
+        f"Blessed — logs de atividade ({descricao})",
+        f"Segue em anexo o relatório de atividade: {descricao}.",
         anexo_nome=nome,
         anexo_conteudo=buffer.getvalue().encode("utf-8-sig"),
     )
-
-    if not enviado:
-        return
-
-    ids = [row["id"] for row in rows]
-    placeholders = ",".join("?" for _ in ids)
-
-    con.execute(
-        f"""
-        UPDATE atividade_log
-        SET enviado_em = ?
-        WHERE id IN ({placeholders})
-        """,
-        [agora.isoformat(timespec="seconds"), *ids],
-    )
-    con.commit()
 
 
 @app.after_request
@@ -716,8 +662,7 @@ def registar_atividade_site(response):
             ))
             con.commit()
 
-            # O envio por email é controlado pelo Admin > Logs.
-            _enviar_lote_atividades(con)
+            # Multi-users: os logs ficam guardados localmente. O envio por email é manual no Admin > Logs.
             con.close()
 
     except Exception as erro:
@@ -1595,7 +1540,6 @@ def admin():
         ORDER BY id DESC
         LIMIT 200
     """).fetchall()
-    logs_email_ativo = _logs_email_ativo(con)
 
     con.close()
 
@@ -1611,25 +1555,58 @@ def admin():
         sistema_admin=sistema_admin,
         backups_admin=backups_admin,
         logs_admin=logs_admin,
-        logs_email_ativo=logs_email_ativo,
         logs_email_destino=LOG_EMAIL_DESTINO,
         utilizador=utilizador_atual(),
     )
 
 
 
-@app.route("/admin/logs/email", methods=["POST"])
+@app.route("/admin/logs/enviar", methods=["POST"])
 @requer_admin
-def admin_logs_email():
-    ativo = request.form.get("ativo") == "1"
+def admin_logs_enviar():
+    modo = request.form.get("modo", "lote")
     con = get_db()
-    con.execute("""
-        INSERT INTO definicoes (chave, valor)
-        VALUES (?, ?)
-        ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor
-    """, (LOG_EMAIL_ATIVO_CHAVE, "1" if ativo else "0"))
-    con.commit()
+    if modo == "lote":
+        try:
+            limite = int(request.form.get("lote", "50"))
+        except ValueError:
+            limite = 50
+        if limite not in (50, 100, 150):
+            con.close()
+            return "Lote inválido", 400
+        rows = con.execute("""
+            SELECT id, criado_em, metodo, caminho, estado_http, ip
+            FROM atividade_log WHERE enviado_em IS NULL
+            ORDER BY id DESC LIMIT ?
+        """, (limite,)).fetchall()
+        descricao = f"últimos {len(rows)} logs pendentes"
+    elif modo == "datas":
+        inicio = request.form.get("data_inicio", "").strip()
+        fim = request.form.get("data_fim", "").strip()
+        if not inicio or not fim or inicio > fim:
+            con.close()
+            return "Intervalo de datas inválido", 400
+        rows = con.execute("""
+            SELECT id, criado_em, metodo, caminho, estado_http, ip
+            FROM atividade_log
+            WHERE date(criado_em) BETWEEN ? AND ?
+            ORDER BY id
+        """, (inicio, fim)).fetchall()
+        descricao = f"{inicio} a {fim}"
+    else:
+        con.close()
+        return "Modo inválido", 400
+
+    enviado = _enviar_logs_email(rows, descricao)
+    if enviado and rows:
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+        ids = [row["id"] for row in rows]
+        placeholders = ",".join("?" for _ in ids)
+        con.execute(f"UPDATE atividade_log SET enviado_em = ? WHERE id IN ({placeholders})", [agora, *ids])
+        con.commit()
     con.close()
+    if not enviado:
+        return "Não foi possível enviar os logs por email", 502
     return redirect(url_for("admin") + "#admin-logs")
 
 
