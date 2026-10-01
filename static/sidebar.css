@@ -525,3 +525,24 @@
 .menu-principal .icone-estatisticas{-webkit-mask-image:url("/static/icons/estatisticas.svg");mask-image:url("/static/icons/estatisticas.svg");}
 .menu-principal .icone-definicoes{-webkit-mask-image:url("/static/icons/definicoes.svg");mask-image:url("/static/icons/definicoes.svg");}
 .menu-principal .icone-atualizar{-webkit-mask-image:url("/static/icons/atualizar.svg");mask-image:url("/static/icons/atualizar.svg");}
+
+/* Ecrãs desktop compactos: menu lateral com scroll independente. */
+@media (min-width: 701px) {
+    .app-semana .lateral-marca {
+        position: sticky;
+        top: 0;
+        align-self: start;
+        box-sizing: border-box;
+        height: 100vh;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior-y: contain;
+        scrollbar-width: thin;
+        scrollbar-color: #555 #111;
+    }
+    .app-semana .lateral-marca .menu-principal,
+    .app-semana .lateral-marca .meses-dropdown {
+        flex-shrink: 0;
+    }
+}
