@@ -99,7 +99,17 @@ def enviar_sms_smsgate(telefone, texto):
     if not telefone or not texto:
         return False
 
-    env_path = Path.home() / ".config" / "blessed" / "smsgate.env"
+    # Each establishment explicitly selects its own SMS gateway and credentials.
+    # Never fall back to Bruno's shared gateway or credentials.
+    sms_env = os.environ.get("BLESSED_SMSGATE_ENV", "").strip()
+    sms_url = os.environ.get("BLESSED_SMSGATE_URL", "").strip()
+    if not sms_env or not sms_url:
+        print("SMS: gateway e credenciais do estabelecimento não configurados")
+        return False
+    if not sms_url.startswith(("https://", "http://")):
+        print("SMS: endereço do gateway inválido")
+        return False
+    env_path = Path(sms_env).expanduser()
     credenciais = {}
 
     try:
@@ -132,7 +142,7 @@ def enviar_sms_smsgate(telefone, texto):
     ).decode("ascii")
 
     req = urllib.request.Request(
-        "http://100.108.198.2:8080/message",
+        sms_url,
         data=json.dumps(payload).encode("utf-8"),
         headers={
             "Authorization": f"Basic {token}",
