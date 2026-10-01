@@ -718,3 +718,11 @@ p {
 .week-add{font-size:.78rem;margin-top:.7rem}
 @media(max-width:960px){.demo-week-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:550px){.demo-week-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.subscription-options{margin:1.4rem 0 2rem}
+.subscription-options[hidden]{display:none}
+.subscription-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem}
+.subscription-cards>div{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:1rem;display:flex;flex-direction:column;gap:.4rem}
+.subscription-cards strong{font-size:1.9rem;color:var(--text)}
+.subscription-cards span{color:var(--muted)}
+@media(max-width:550px){.subscription-cards{grid-template-columns:1fr}}
