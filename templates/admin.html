@@ -204,7 +204,24 @@ button {
     <button type="button" data-tab="produtos">Produtos</button>
     <button type="button" data-tab="comunicacoes">Comunicações</button>
     <button type="button" data-tab="sistema">Sistema</button>
+    <button type="button" data-tab="logs">Logs</button>
 </nav>
+
+<section class="admin-caixa admin-tab-painel" id="admin-logs" data-admin-tab="logs">
+    <h2>Logs de atividade</h2>
+    <p style="opacity:.75">Últimos {{ logs_admin|length }} registos guardados localmente. O envio por email está <strong>{{ 'LIGADO' if logs_email_ativo else 'DESLIGADO' }}</strong>.</p>
+    <form method="post" action="/admin/logs/email" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+        <input type="hidden" name="ativo" value="{{ '0' if logs_email_ativo else '1' }}">
+        <button class="{{ 'admin-apagar' if logs_email_ativo else 'admin-guardar' }}" type="submit">{{ 'Desligar envio por email' if logs_email_ativo else 'Ligar envio por email' }}</button>
+        <span style="opacity:.7">Destino: {{ logs_email_destino }}</span>
+    </form>
+    <div style="overflow:auto;max-height:560px;border:1px solid #303030;border-radius:8px">
+        <table style="width:100%;border-collapse:collapse;min-width:760px">
+            <thead><tr><th style="padding:8px;text-align:left">Data/Hora</th><th style="padding:8px;text-align:left">Método</th><th style="padding:8px;text-align:left">Caminho</th><th style="padding:8px;text-align:left">HTTP</th><th style="padding:8px;text-align:left">IP</th><th style="padding:8px;text-align:left">Email</th></tr></thead>
+            <tbody>{% for log in logs_admin %}<tr style="border-top:1px solid #252525"><td style="padding:8px;white-space:nowrap">{{ log.criado_em }}</td><td style="padding:8px">{{ log.metodo }}</td><td style="padding:8px">{{ log.caminho }}</td><td style="padding:8px">{{ log.estado_http }}</td><td style="padding:8px">{{ log.ip or '—' }}</td><td style="padding:8px">{{ log.enviado_em or 'Pendente' }}</td></tr>{% else %}<tr><td colspan="6" style="padding:14px">Ainda não existem logs.</td></tr>{% endfor %}</tbody>
+        </table>
+    </div>
+</section>
 
 <section class="admin-caixa admin-tab-painel" data-admin-tab="utilizadores">
 
@@ -1211,6 +1228,7 @@ Obrigado pela compreensão.`
 
     if (location.hash === '#admin-clientes') inicial = 'clientes';
     else if (location.hash === '#admin-sistema') inicial = 'sistema';
+    else if (location.hash === '#admin-logs') inicial = 'logs';
     else if (location.hash === '#admin-produtos') inicial = 'produtos';
     else if (location.hash === '#admin-servicos') inicial = 'servicos';
     else if (
