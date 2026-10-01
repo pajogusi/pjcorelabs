@@ -53,3 +53,5 @@ Atualizado: 2026-10-01. Registar apenas informações verificadas; distinguir hi
 - Demonstração simplificada e fictícia: não representa todas as funcionalidades comerciais, não envia SMS nem tem ligação à base de dados real.
 - Página `website/pages/chairflow.html` mantida como legado sem link no portefólio; não eliminar sem confirmação.
 - Publicação Cloudflare: confirmar visualmente as novas rotas após deploy.
+
+- 2026-10-01: acrescentada vista semanal interativa (7 dias, semanas anterior/seguinte/atual, criar e editar por clique) às duas demonstrações, com traduções PT/EN e grelha responsiva. Código em `website/js/projects-demo.js` e estilos em `website/css/style.css`.
