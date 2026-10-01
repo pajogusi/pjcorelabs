@@ -23,6 +23,7 @@ DB = Path(os.environ.get("BLESSED_DB", str(Path(__file__).with_name("blessed.db"
 
 LOG_EMAIL_DESTINO = "pajogusi.uk@gmail.com"
 LOG_LOTE_TAMANHO = 10
+LOG_EMAIL_ATIVO_CHAVE = "logs_email_ativo"
 LOG_LOCK = threading.Lock()
 
 
@@ -609,7 +610,15 @@ def normalizar_data_nascimento(valor):
 
 
 
+def _logs_email_ativo(con):
+    row = con.execute("SELECT valor FROM definicoes WHERE chave = ?", (LOG_EMAIL_ATIVO_CHAVE,)).fetchone()
+    return bool(row and str(row["valor"]).strip() == "1")
+
+
 def _enviar_lote_atividades(con):
+    if not _logs_email_ativo(con):
+        return
+
     rows = con.execute("""
         SELECT id, criado_em, metodo, caminho, estado_http, ip
         FROM atividade_log
@@ -1580,6 +1589,14 @@ def admin():
             )[:10]
         ]
 
+    logs_admin = con.execute("""
+        SELECT id, criado_em, metodo, caminho, estado_http, ip, enviado_em
+        FROM atividade_log
+        ORDER BY id DESC
+        LIMIT 200
+    """).fetchall()
+    logs_email_ativo = _logs_email_ativo(con)
+
     con.close()
 
     return render_template(
@@ -1593,9 +1610,27 @@ def admin():
         clientes_admin=clientes_admin,
         sistema_admin=sistema_admin,
         backups_admin=backups_admin,
+        logs_admin=logs_admin,
+        logs_email_ativo=logs_email_ativo,
+        logs_email_destino=LOG_EMAIL_DESTINO,
         utilizador=utilizador_atual(),
     )
 
+
+
+@app.route("/admin/logs/email", methods=["POST"])
+@requer_admin
+def admin_logs_email():
+    ativo = request.form.get("ativo") == "1"
+    con = get_db()
+    con.execute("""
+        INSERT INTO definicoes (chave, valor)
+        VALUES (?, ?)
+        ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor
+    """, (LOG_EMAIL_ATIVO_CHAVE, "1" if ativo else "0"))
+    con.commit()
+    con.close()
+    return redirect(url_for("admin") + "#admin-logs")
 
 
 @app.route("/admin/modelos/<int:modelo_id>/guardar", methods=["POST"])
