@@ -1,5 +1,6 @@
 const translations = {
   pt: {
+    subscriptionOptions: "Opções de subscrição", subscriptionMonthly: "Mensal", subscriptionSixMonths: "6 meses", subscriptionYearly: "Anual",
     weekTitle: "Vista semanal", weekPrev: "Semana anterior", weekToday: "Esta semana", weekNext: "Semana seguinte", weekEmpty: "Sem marcações", weekAdd: "+ Marcação",
     productBrand: "PJCore Agenda",
     navSoftware: "Software",
@@ -294,6 +295,7 @@ const translations = {
   },
 
   en: {
+    subscriptionOptions: "Subscription options", subscriptionMonthly: "Monthly", subscriptionSixMonths: "6 months", subscriptionYearly: "Annual",
     weekTitle: "Weekly view", weekPrev: "Previous week", weekToday: "This week", weekNext: "Next week", weekEmpty: "No bookings", weekAdd: "+ Booking",
     productBrand: "ChairFlow",
     navSoftware: "Software",
@@ -606,6 +608,7 @@ function detectLanguage() {
 function setLanguage(lang) {
   localStorage.setItem("pjcorelabs-language", lang);
   document.documentElement.lang = lang;
+  document.querySelectorAll('[data-pt-subscriptions]').forEach(e => e.hidden = lang !== 'pt');
   document.querySelectorAll('[data-price-pt]').forEach(e => e.hidden = lang !== 'pt');
   document.querySelectorAll('[data-price-en]').forEach(e => e.hidden = lang !== 'en');
 
