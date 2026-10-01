@@ -1538,7 +1538,7 @@ def admin():
         ),
     }
 
-    pasta_backups = Path("backups")
+    pasta_backups = DB.parent / "backups"
 
     backups_admin = []
 
@@ -1950,13 +1950,13 @@ def admin_campanha_cancelar(campanha_id):
 @app.route("/admin/sistema/backup", methods=["POST"])
 @requer_admin
 def admin_sistema_backup():
-    origem = Path("blessed.db")
+    origem = DB
 
     if not origem.exists():
         return "Base de dados não encontrada", 404
 
-    pasta = Path("backups")
-    pasta.mkdir(exist_ok=True)
+    pasta = DB.parent / "backups"
+    pasta.mkdir(parents=True, exist_ok=True)
 
     nome = datetime.now().strftime(
         "blessed-%Y%m%d-%H%M%S.db"
@@ -1964,7 +1964,9 @@ def admin_sistema_backup():
 
     destino = pasta / nome
 
-    shutil.copy2(origem, destino)
+    # SQLite online backup keeps the copy consistent while writes are active.
+    with sqlite3.connect(origem) as fonte, sqlite3.connect(destino) as copia:
+        fonte.backup(copia)
 
     return redirect(
         url_for("admin") + "#admin-sistema"
