@@ -1,5 +1,6 @@
 const translations = {
   pt: {
+    productBrand: "PJCore Agenda",
     navSoftware: "Software",
     swEyebrow: "Software por subscrição",
     swTitle: "Software para o teu negócio.",
@@ -292,6 +293,7 @@ const translations = {
   },
 
   en: {
+    productBrand: "ChairFlow",
     navSoftware: "Software",
     swEyebrow: "Subscription software",
     swTitle: "Software for your business.",
