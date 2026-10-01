@@ -1,5 +1,6 @@
 const translations = {
   pt: {
+    weekTitle: "Vista semanal", weekPrev: "Semana anterior", weekToday: "Esta semana", weekNext: "Semana seguinte", weekEmpty: "Sem marcações", weekAdd: "+ Marcação",
     productBrand: "PJCore Agenda",
     navSoftware: "Software",
     swEyebrow: "Software por subscrição",
@@ -293,6 +294,7 @@ const translations = {
   },
 
   en: {
+    weekTitle: "Weekly view", weekPrev: "Previous week", weekToday: "This week", weekNext: "Next week", weekEmpty: "No bookings", weekAdd: "+ Booking",
     productBrand: "ChairFlow",
     navSoftware: "Software",
     swEyebrow: "Subscription software",
