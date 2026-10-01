@@ -1027,6 +1027,7 @@ def obter_clientes_inativos(con, dias=None, apenas_pendentes=False):
             dono.nome AS barbeiro_nome
         FROM clientes c
         JOIN marcacoes m ON m.cliente_id = c.id
+        LEFT JOIN utilizadores dono ON dono.id = c.barbeiro_id
         GROUP BY c.id
         HAVING ultimo_corte IS NOT NULL
            AND ultimo_corte <= ?
