@@ -197,7 +197,7 @@ def utilizador_atual():
 
 def gestor():
     utilizador = utilizador_atual()
-    return bool(utilizador and utilizador["papel"] == "gestor")
+    return bool(utilizador and (utilizador["papel"] == "gestor" or utilizador["e_admin"]))
 
 
 def requer_login(func):
@@ -339,6 +339,25 @@ def pode_gerir_cliente(cliente):
     return cliente["barbeiro_id"] == utilizador["id"]
 
 
+def atualizar_dono_cliente(con, cliente_id):
+    """Atualiza o dono pelo maior número de cortes; empate = corte mais recente."""
+    dono = con.execute("""
+        SELECT m.barbeiro_id
+        FROM marcacoes m
+        WHERE m.cliente_id = ?
+          AND m.estado = 'concluída'
+          AND m.barbeiro_id IS NOT NULL
+        GROUP BY m.barbeiro_id
+        ORDER BY COUNT(*) DESC, MAX(m.inicio) DESC, m.barbeiro_id ASC
+        LIMIT 1
+    """, (cliente_id,)).fetchone()
+    if dono:
+        con.execute(
+            "UPDATE clientes SET barbeiro_id = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
+            (dono["barbeiro_id"], cliente_id),
+        )
+
+
 def barbeiro_permitido(barbeiro_id):
     """O gestor pode escolher qualquer profissional; o barbeiro apenas a si próprio."""
     utilizador = utilizador_atual()
@@ -365,10 +384,11 @@ def pode_marcar_para(barbeiro_id):
 
 
 def pode_alterar_marcacao(marcacao):
-    """Só o gestor, o barbeiro responsável, ou quem a criou para outro pode alterar."""
+    """Admin, gestor, barbeiro responsável ou quem a criou para outro pode alterar."""
     utilizador = utilizador_atual()
     return bool(utilizador and (
-        utilizador["papel"] == "gestor"
+        utilizador["e_admin"]
+        or utilizador["papel"] == "gestor"
         or marcacao["barbeiro_id"] == utilizador["id"]
         or (
             utilizador["pode_marcar_outros"]
@@ -1002,7 +1022,9 @@ def obter_clientes_inativos(con, dias=None, apenas_pendentes=False):
                 ORDER BY t.id DESC
                 LIMIT 1
             ), '') AS telefone,
-            MAX(CASE WHEN m.estado = 'concluída' THEN m.inicio END) AS ultimo_corte
+            MAX(CASE WHEN m.estado = 'concluída' THEN m.inicio END) AS ultimo_corte,
+            dono.username AS barbeiro_username,
+            dono.nome AS barbeiro_nome
         FROM clientes c
         JOIN marcacoes m ON m.cliente_id = c.id
         GROUP BY c.id
@@ -2519,6 +2541,8 @@ def clientes():
             ON tp.cliente_id = c.id AND tp.atual = 1
         LEFT JOIN marcacoes m
             ON m.cliente_id = c.id
+        LEFT JOIN utilizadores dono
+            ON dono.id = c.barbeiro_id
         WHERE (? = ''
            OR c.nome LIKE ? COLLATE NOCASE
            OR COALESCE(c.email, '') LIKE ? COLLATE NOCASE
@@ -2692,9 +2716,11 @@ def cliente_detalhe(cliente_id):
             return "Cliente não encontrado", 404
 
     historico = con.execute("""
-        SELECT id, inicio, duracao_minutos, servico, estado, observacoes
-        FROM marcacoes
-        WHERE cliente_id = ?
+        SELECT m.id, m.inicio, m.duracao_minutos, m.servico, m.estado, m.observacoes,
+               m.barbeiro_id, u.nome AS barbeiro_nome
+        FROM marcacoes m
+        LEFT JOIN utilizadores u ON u.id = m.barbeiro_id
+        WHERE m.cliente_id = ?
         ORDER BY inicio DESC
     """, (cliente_id,)).fetchall()
 
@@ -3370,7 +3396,7 @@ def alterar_estado_marcacao(marcacao_id):
 
     con = get_db()
     concretizar_marcacoes_vencidas(con)
-    marcacao = con.execute("SELECT id, inicio, barbeiro_id, criado_por_id FROM marcacoes WHERE id = ?", (marcacao_id,)).fetchone()
+    marcacao = con.execute("SELECT id, cliente_id, inicio, barbeiro_id, criado_por_id FROM marcacoes WHERE id = ?", (marcacao_id,)).fetchone()
     if not marcacao:
         con.close()
         return "Marcação não encontrada", 404
@@ -3382,6 +3408,7 @@ def alterar_estado_marcacao(marcacao_id):
         "UPDATE marcacoes SET estado = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
         (estado, marcacao_id),
     )
+    atualizar_dono_cliente(con, marcacao["cliente_id"])
     con.commit()
     data_marcacao = marcacao["inicio"][:10]
     con.close()
