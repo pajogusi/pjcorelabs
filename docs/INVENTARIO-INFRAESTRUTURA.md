@@ -32,12 +32,12 @@ Atualizado: 2026-10-01. Registar apenas informações verificadas; distinguir hi
 2. Quando se confirmar uma alteração de porta, domínio, serviço, diretório, repositório ou deploy, atualizar imediatamente este ficheiro no mesmo trabalho.
 3. Nunca registar palavras-passe, tokens, segredos ou chaves privadas.
 
-## Atualização do site — 2026-10-01
+## Atualização corrigida do site — 2026-10-01
 
-- Fonte: `pajogusi/pjcorelabs/website/`.
-- Página principal: `website/index.html` (secção PJCore Agenda adicionada).
-- Portefólio: `website/pages/projects.html` (cartão PJCore Agenda).
-- Produto: `website/pages/pjcore-agenda.html`.
-- Demonstração independente: `website/pages/pjcore-agenda-demo.html` (dados fictícios apenas, sem envio real de SMS e sem integração com produção).
-- Condições divulgadas: £12/mês, 200 SMS/mês, 15 dias de teste com 50 SMS. Confirmar operacionalização do registo/teste antes de prometer ativação automática.
-- **Deploy público ainda por confirmar**: commits no GitHub não garantem que Cloudflare publique automaticamente. Verificar configuração Pages e depois URL público.
+- Página principal `website/index.html` restaurada sem promoção adicional.
+- Demonstração interativa incorporada em `website/pages/projects.html`, junto do portefólio existente; não foi criado um segundo produto comercial.
+- Código da demonstração: `website/js/projects-demo.js`; estilos: `website/css/style.css`; textos PT/EN: `website/js/language.js`.
+- A simulação é fictícia e local ao navegador, não envia SMS nem altera a Blessed; impede coincidências exatas de data/hora (não é um motor completo de gestão de duração de serviços).
+- Páginas autónomas erradas `pjcore-agenda.html` e `pjcore-agenda-demo.html` eliminadas.
+- Não divulgar preços nem condições comerciais até confirmar a apresentação final.
+- **Por confirmar:** se o Cloudflare publica automaticamente o conteúdo de `website/`; verificar no painel e testar site público após deploy.
