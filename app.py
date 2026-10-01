@@ -3272,7 +3272,7 @@ def nova_marcacao():
     if sms_ativo:
         enviar_sms_do_barbeiro(barbeiro_id, telefone, texto_sms)
 
-    return redirect(url_for("semana", data=novo_inicio.date().isoformat()))
+    # Reabrir a agenda do profissional que recebeu a marcação, em vez da\n    # agenda pessoal do utilizador que a criou.\n    return redirect(url_for(\n        "semana", data=novo_inicio.date().isoformat(), barbeiro=barbeiro_id\n    ))
 
 @app.route("/marcacoes/<int:marcacao_id>/duracao", methods=["POST"])
 def alterar_duracao_marcacao(marcacao_id):
