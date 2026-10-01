@@ -688,3 +688,18 @@ p {
 .demo-disclaimer{font-size:.85rem;margin-top:1rem}
 #demo-notice{min-height:1.4rem;color:#8fe9c7;font-size:.95rem}
 @media(max-width:760px){.demo-columns{grid-template-columns:1fr}}
+
+/* Subscription software catalogue and pricing */
+.catalog-title{font-size:clamp(1.5rem,3vw,2.2rem);letter-spacing:0}
+.product-page-hero{min-height:55vh}
+.product-page-hero h1{font-size:clamp(2.8rem,7vw,5rem);letter-spacing:0}
+.pricing-block{margin-top:4rem;border-top:1px solid var(--border);padding-top:3rem}
+.price-amount{font-size:clamp(2.5rem,6vw,4rem);font-weight:850;color:var(--text);margin-bottom:1.5rem}
+.price-amount small{font-size:1.1rem;font-weight:500;color:var(--muted)}
+.price-amount [hidden]{display:none}
+.feature-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem;list-style:none;padding:0;margin:2rem 0}
+.feature-list li{background:var(--panel);border:1px solid var(--border);padding:.9rem 1rem;border-radius:12px}
+.feature-list li::before{content:"✓";color:var(--primary);margin-right:.7rem;font-weight:800}
+.trial-box{margin-top:2rem;background:linear-gradient(140deg,var(--panel),var(--panel-soft));border:1px solid var(--border);border-radius:22px;padding:2rem}
+.trial-box h3{font-size:1.6rem}
+@media(max-width:760px){.feature-list{grid-template-columns:1fr}.site-nav{gap:.65rem}}
