@@ -331,6 +331,93 @@ with tempfile.TemporaryDirectory(prefix="blessed-multiuser-") as tmp:
         f"HTTP {r.status_code}"
     )
 
+
+    # --------------------------------------------------
+    # 6. ISOLAMENTO DE CONFLITOS ENTRE AGENDAS
+    # --------------------------------------------------
+
+    con = sqlite3.connect(module.DB)
+    con.row_factory = sqlite3.Row
+
+    utilizadores = con.execute("""
+        SELECT id, username
+        FROM utilizadores
+        WHERE username IN ('um', 'dois')
+    """).fetchall()
+
+    ids_conflito = {u["username"]: u["id"] for u in utilizadores}
+    con.close()
+
+    client.get("/logout")
+    client.post("/login", data={
+        "username": "um",
+        "password": "um-test"
+    })
+
+    inicio_conflito = "2030-06-10T10:00"
+
+    r1 = client.post("/marcacoes/nova", data={
+        "nome": "Cliente Agenda Um",
+        "telefone": "07111111001",
+        "inicio": inicio_conflito,
+        "duracao": "30",
+        "barbeiro_id": ids_conflito["um"],
+    })
+
+    client.get("/logout")
+    client.post("/login", data={
+        "username": "dois",
+        "password": "dois-test"
+    })
+
+    r2 = client.post("/marcacoes/nova", data={
+        "nome": "Cliente Agenda Dois",
+        "telefone": "07111111002",
+        "inicio": inicio_conflito,
+        "duracao": "30",
+        "barbeiro_id": ids_conflito["dois"],
+    })
+
+    teste(
+        "Dois barbeiros podem ter marcações simultâneas",
+        r1.status_code in (302, 303) and r2.status_code in (302, 303),
+        f"HTTP agenda 1={r1.status_code}, agenda 2={r2.status_code}"
+    )
+
+    con = sqlite3.connect(module.DB)
+    con.row_factory = sqlite3.Row
+
+    marcacao_um = con.execute("""
+        SELECT id
+        FROM marcacoes
+        WHERE barbeiro_id = ?
+          AND inicio = ?
+        ORDER BY id DESC
+        LIMIT 1
+    """, (
+        ids_conflito["um"],
+        inicio_conflito
+    )).fetchone()
+
+    con.close()
+
+    client.get("/logout")
+    client.post("/login", data={
+        "username": "um",
+        "password": "um-test"
+    })
+
+    r = client.post(
+        f"/marcacoes/{marcacao_um['id']}/duracao",
+        data={"duracao": "45"}
+    )
+
+    teste(
+        "Alterar duração ignora marcações de outro barbeiro",
+        r.status_code == 200,
+        f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:200]}"
+    )
+
     print()
     print("================================================")
     print(f"RESULTADO: {PASS} PASS | {FAIL} FAIL")

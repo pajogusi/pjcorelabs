@@ -3355,8 +3355,13 @@ def alterar_duracao_marcacao(marcacao_id):
         WHERE substr(m.inicio, 1, 10) = ?
           AND m.id != ?
           AND m.estado != 'cancelada'
+          AND m.barbeiro_id = ?
         ORDER BY m.inicio
-    """, (novo_inicio.date().isoformat(), marcacao_id)).fetchall()
+    """, (
+        novo_inicio.date().isoformat(),
+        marcacao_id,
+        marcacao["barbeiro_id"],
+    )).fetchall()
 
     conflitos = []
 
