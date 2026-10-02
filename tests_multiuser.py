@@ -143,7 +143,7 @@ with tempfile.TemporaryDirectory(prefix="blessed-multiuser-") as tmp:
     teste(
         "Agenda exige autenticação",
         r.status_code in (302, 303),
-        f"HTTP {r.status_code}"
+        f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:500]}"
     )
 
     r = client.post(
@@ -157,7 +157,7 @@ with tempfile.TemporaryDirectory(prefix="blessed-multiuser-") as tmp:
     teste(
         "Login inválido é rejeitado",
         r.status_code == 401,
-        f"HTTP {r.status_code}"
+        f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:500]}"
     )
 
     r = client.post(
@@ -171,7 +171,7 @@ with tempfile.TemporaryDirectory(prefix="blessed-multiuser-") as tmp:
     teste(
         "Barbeiro consegue autenticar",
         r.status_code in (302, 303),
-        f"HTTP {r.status_code}"
+        f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:500]}"
     )
 
     # --------------------------------------------------
@@ -192,7 +192,7 @@ with tempfile.TemporaryDirectory(prefix="blessed-multiuser-") as tmp:
     teste(
         "Barbeiro consegue criar marcação",
         r.status_code in (302, 303),
-        f"HTTP {r.status_code}"
+        f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:500]}"
     )
 
     con = sqlite3.connect(db)
@@ -237,7 +237,7 @@ with tempfile.TemporaryDirectory(prefix="blessed-multiuser-") as tmp:
     teste(
         "Barbeiro não altera marcação de outro",
         r.status_code == 403,
-        f"HTTP {r.status_code}"
+        f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:500]}"
     )
 
     con = sqlite3.connect(db)
@@ -283,7 +283,7 @@ with tempfile.TemporaryDirectory(prefix="blessed-multiuser-") as tmp:
     teste(
         "Gestor cria marcação para outro profissional",
         r.status_code in (302, 303),
-        f"HTTP {r.status_code}"
+        f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:500]}"
     )
 
     con = sqlite3.connect(db)
@@ -314,7 +314,7 @@ with tempfile.TemporaryDirectory(prefix="blessed-multiuser-") as tmp:
     teste(
         "Gestor consegue alterar marcação de profissional",
         r.status_code in (302, 303),
-        f"HTTP {r.status_code}"
+        f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:500]}"
     )
 
     # --------------------------------------------------
@@ -328,7 +328,7 @@ with tempfile.TemporaryDirectory(prefix="blessed-multiuser-") as tmp:
     teste(
         "Logout volta a proteger a agenda",
         r.status_code in (302, 303),
-        f"HTTP {r.status_code}"
+        f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:500]}"
     )
 
 
@@ -417,6 +417,262 @@ with tempfile.TemporaryDirectory(prefix="blessed-multiuser-") as tmp:
         r.status_code == 200,
         f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:200]}"
     )
+
+
+    # --------------------------------------------------
+    # 7. ISOLAMENTO DE CLIENTES ENTRE BARBEIROS
+    # --------------------------------------------------
+
+    client.get("/logout")
+
+    # Criar clientes diretamente na BD para testar apenas permissões.
+    con = sqlite3.connect(db)
+    con.row_factory = sqlite3.Row
+
+    con.execute(
+        "INSERT INTO clientes (nome, barbeiro_id) VALUES (?, ?)",
+        ("Cliente Privado Um", ids["um"])
+    )
+    cliente_um_id = con.execute(
+        "SELECT last_insert_rowid()"
+    ).fetchone()[0]
+
+    con.execute(
+        "INSERT INTO clientes (nome, barbeiro_id) VALUES (?, ?)",
+        ("Cliente Privado Dois", ids["dois"])
+    )
+    cliente_dois_id = con.execute(
+        "SELECT last_insert_rowid()"
+    ).fetchone()[0]
+
+    con.execute(
+        "INSERT INTO telefones (cliente_id, numero, numero_normalizado, atual) VALUES (?, ?, ?, 1)",
+        (cliente_um_id, "07000000001", "07000000001")
+    )
+    con.execute(
+        "INSERT INTO telefones (cliente_id, numero, numero_normalizado, atual) VALUES (?, ?, ?, 1)",
+        (cliente_dois_id, "07000000002", "07000000002")
+    )
+
+    con.commit()
+    con.close()
+
+    # Barbeiro Um entra.
+    client.post(
+        "/login",
+        data={
+            "username": "um",
+            "password": "um-test"
+        }
+    )
+
+    # Deve conseguir abrir o seu próprio cliente.
+    r = client.get(f"/clientes/{cliente_um_id}")
+
+    teste(
+        "Barbeiro consegue consultar o próprio cliente",
+        r.status_code == 200,
+        f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:500]}"
+    )
+
+    # Não pode consultar cliente pertencente ao Barbeiro Dois.
+    r = client.get(f"/clientes/{cliente_dois_id}")
+
+    teste(
+        "Barbeiro não consulta cliente de outro barbeiro",
+        r.status_code in (403, 404),
+        f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:500]}"
+    )
+
+    client.get("/logout")
+
+    # Bruno / gestor deve conseguir consultar ambos.
+    client.post(
+        "/login",
+        data={
+            "username": "bruno",
+            "password": "bruno-test"
+        }
+    )
+
+    r1 = client.get(f"/clientes/{cliente_um_id}")
+    r2 = client.get(f"/clientes/{cliente_dois_id}")
+
+    teste(
+        "Gestor consegue consultar clientes de todos os barbeiros",
+        r1.status_code == 200 and r2.status_code == 200,
+        f"Cliente Um HTTP {r1.status_code} | Cliente Dois HTTP {r2.status_code}"
+    )
+
+    client.get("/logout")
+
+
+    # --------------------------------------------------
+    # 8. CLIENTES E MARCAÇÕES ENTRE BARBEIROS
+    # --------------------------------------------------
+
+    client.get("/logout")
+
+    # Obter os clientes criados no teste anterior.
+    con = sqlite3.connect(db)
+    con.row_factory = sqlite3.Row
+
+    cliente_um = con.execute(
+        "SELECT id FROM clientes WHERE nome = ? ORDER BY id DESC LIMIT 1",
+        ("Cliente Privado Um",)
+    ).fetchone()
+
+    cliente_dois = con.execute(
+        "SELECT id FROM clientes WHERE nome = ? ORDER BY id DESC LIMIT 1",
+        ("Cliente Privado Dois",)
+    ).fetchone()
+
+    con.close()
+
+    # --------------------------------------------------
+    # Barbeiro Um NÃO pode marcar cliente do Barbeiro Dois
+    # --------------------------------------------------
+
+    client.post(
+        "/login",
+        data={
+            "username": "um",
+            "password": "um-test"
+        }
+    )
+
+    inicio_teste = "2030-07-10T14:00"
+
+    r = client.post(
+        "/marcacoes/nova",
+        data={
+            "nome": "Cliente Privado Dois",
+            "telefone": "07000000002",
+            "barbeiro_id": str(ids["um"]),
+            "inicio": inicio_teste,
+            "duracao": "30",
+            "servico": "Teste isolamento cliente"
+        }
+    )
+
+    con = sqlite3.connect(db)
+    tentativa_cliente_alheio = con.execute(
+        """
+        SELECT COUNT(*)
+        FROM marcacoes
+        WHERE cliente_id = ?
+          AND barbeiro_id = ?
+          AND inicio = ?
+        """,
+        (
+            cliente_dois["id"],
+            ids["um"],
+            inicio_teste
+        )
+    ).fetchone()[0]
+    con.close()
+
+    teste(
+        "Barbeiro não marca cliente pertencente a outro barbeiro",
+        tentativa_cliente_alheio == 0,
+        f"HTTP {r.status_code} | marcações criadas {tentativa_cliente_alheio}"
+    )
+
+    # --------------------------------------------------
+    # Barbeiro Um NÃO pode marcar na agenda do Barbeiro Dois
+    # --------------------------------------------------
+
+    inicio_teste_2 = "2030-07-10T15:00"
+
+    r = client.post(
+        "/marcacoes/nova",
+        data={
+            "nome": "Cliente Privado Um",
+            "telefone": "07000000001",
+            "barbeiro_id": str(ids["dois"]),
+            "inicio": inicio_teste_2,
+            "duracao": "30",
+            "servico": "Teste agenda alheia"
+        }
+    )
+
+    con = sqlite3.connect(db)
+    marcacao_agenda_dois = con.execute(
+        """
+        SELECT COUNT(*)
+        FROM marcacoes
+        WHERE cliente_id = ?
+          AND barbeiro_id = ?
+          AND inicio = ?
+        """,
+        (
+            cliente_um["id"],
+            ids["dois"],
+            inicio_teste_2
+        )
+    ).fetchone()[0]
+    con.close()
+
+    teste(
+        "Barbeiro não cria marcação na agenda de outro barbeiro",
+        marcacao_agenda_dois == 0,
+        f"HTTP {r.status_code} | marcações criadas {marcacao_agenda_dois}"
+    )
+
+    client.get("/logout")
+
+    # --------------------------------------------------
+    # Bruno / gestor PODE colocar cliente do B2 no B1
+    # --------------------------------------------------
+
+    client.post(
+        "/login",
+        data={
+            "username": "bruno",
+            "password": "bruno-test"
+        }
+    )
+
+    inicio_gestor = "2030-07-10T16:00"
+
+    r = client.post(
+        "/marcacoes/nova",
+        data={
+            "nome": "Cliente Privado Dois",
+            "telefone": "07000000002",
+            "barbeiro_id": str(ids["um"]),
+            "inicio": inicio_gestor,
+            "duracao": "30",
+            "servico": "Teste gestor entre agendas"
+        }
+    )
+
+    con = sqlite3.connect(db)
+    marcacao_gestor = con.execute(
+        """
+        SELECT id, cliente_id, barbeiro_id
+        FROM marcacoes
+        WHERE cliente_id = ?
+          AND barbeiro_id = ?
+          AND inicio = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (
+            cliente_dois["id"],
+            ids["um"],
+            inicio_gestor
+        )
+    ).fetchone()
+    con.close()
+
+    teste(
+        "Gestor pode marcar cliente de um barbeiro noutro barbeiro",
+        marcacao_gestor is not None,
+        f"HTTP {r.status_code} | resposta {r.get_data(as_text=True)[:500]}"
+    )
+
+    client.get("/logout")
 
     print()
     print("================================================")

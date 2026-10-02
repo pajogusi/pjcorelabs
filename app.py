@@ -3094,6 +3094,19 @@ def nova_marcacao():
 
         if cliente:
             cliente_id = cliente["id"]
+
+            # Isolamento de clientes:
+            # um barbeiro normal só pode usar clientes da sua carteira.
+            # Gestor/admin podem marcar clientes de qualquer barbeiro.
+            cliente_com_dono = cur.execute("""
+                SELECT id, barbeiro_id
+                FROM clientes
+                WHERE id = ?
+            """, (cliente_id,)).fetchone()
+
+            if not pode_gerir_cliente(cliente_com_dono):
+                abort(403)
+
             email_cliente = (cliente["email"] or "").strip()
             telefone_id = cliente["telefone_id"]
             cur.execute("""
