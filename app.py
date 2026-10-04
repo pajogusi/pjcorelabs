@@ -378,6 +378,7 @@ def pode_marcar_para(barbeiro_id):
     utilizador = utilizador_atual()
     return bool(utilizador and (
         utilizador["papel"] == "gestor"
+        or utilizador["e_admin"]
         or utilizador["id"] == barbeiro_id
         or utilizador["pode_marcar_outros"]
     ))
@@ -454,7 +455,7 @@ def exigir_autenticacao():
         return redirect(url_for("login"))
 
     # Bruno/gestor tem acesso total.
-    if utilizador["papel"] == "gestor":
+    if utilizador["papel"] == "gestor" or utilizador["e_admin"]:
         return None
 
     # Barbeiros normais só podem usar a sua própria agenda
@@ -472,6 +473,7 @@ def exigir_autenticacao():
         "nova_marcacao",
         "alterar_duracao_marcacao",
         "alterar_estado_marcacao",
+        "cancelar_serie_futura",
     }
 
     if request.endpoint not in permitidos_barbeiro:
@@ -690,10 +692,13 @@ def garantir_esquema():
     colunas = {row["name"] for row in con.execute("PRAGMA table_info(marcacoes)")}
     if "observacoes" not in colunas:
         con.execute("ALTER TABLE marcacoes ADD COLUMN observacoes TEXT")
+    if "serie_id" not in colunas:
+        con.execute("ALTER TABLE marcacoes ADD COLUMN serie_id TEXT")
     if "barbeiro_id" not in colunas:
         con.execute("ALTER TABLE marcacoes ADD COLUMN barbeiro_id INTEGER")
     if "criado_por_id" not in colunas:
         con.execute("ALTER TABLE marcacoes ADD COLUMN criado_por_id INTEGER")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_marcacoes_serie ON marcacoes (serie_id, barbeiro_id, inicio)")
 
     con.execute("""
         CREATE TABLE IF NOT EXISTS utilizadores (
@@ -1137,6 +1142,7 @@ def semana():
             m.duracao_minutos,
             m.servico,
             m.estado,
+            m.serie_id,
             c.nome,
             m.barbeiro_id,
             u.username AS barbeiro_username,
@@ -1172,6 +1178,7 @@ def semana():
                 "duracao": m["duracao_minutos"],
                 "servico": m["servico"],
                 "estado": m["estado"],
+                "serie_id": m["serie_id"],
                 "nome": m["nome"] if gestor() or m["barbeiro_id"] == utilizador["id"] else "Ocupado",
                 "barbeiro_id": m["barbeiro_id"],
                 "barbeiro_username": m["barbeiro_username"],
@@ -3043,16 +3050,25 @@ def nova_marcacao():
         barbeiro_id = utilizador["id"]
     inicio = request.form.get("inicio", "").strip()
     servico = ""
+    repetir = request.form.get("repetir_semanalmente") == "1"
     try:
         duracao = int(request.form.get("duracao", 30))
         novo_inicio = datetime.fromisoformat(inicio)
+        if novo_inicio.tzinfo is not None:
+            raise ValueError
+        repeticoes = int(request.form.get("repeticoes", 1)) if repetir else 1
     except (ValueError, TypeError):
         return "Data, hora ou duração inválida", 400
 
     if not nome or not telefone or not inicio or duracao not in (15, 30, 45, 60, 90):
         return "Dados obrigatórios em falta", 400
 
-    novo_fim = novo_inicio + timedelta(minutes=duracao)
+    if not 1 <= repeticoes <= 52:
+        return "Número de marcações inválido (1 a 52)", 400
+    if novo_inicio < datetime.now():
+        return "Não é possível criar marcações no passado", 400
+    inicios = [novo_inicio + timedelta(weeks=i) for i in range(repeticoes)]
+    serie_id = secrets.token_hex(16) if repeticoes > 1 else None
     numero_normalizado = normalizar_telefone(telefone)
     if not numero_normalizado:
         return "Número de telefone inválido", 400
@@ -3065,20 +3081,25 @@ def nova_marcacao():
 
     email_config = obter_email_barbeiro(con, barbeiro_id)
     email_ativo = email_barbeiro_permitido(email_config)
-    conflitos = con.execute("""
-        SELECT m.inicio, m.duracao_minutos
-        FROM marcacoes m
-        WHERE substr(m.inicio, 1, 10) = ? AND m.estado != 'cancelada' AND m.barbeiro_id = ?
-    """, (novo_inicio.date().isoformat(), barbeiro_id)).fetchall()
-
-    for m in conflitos:
-        existente_inicio = datetime.fromisoformat(m["inicio"])
-        existente_fim = existente_inicio + timedelta(minutes=m["duracao_minutos"])
-        if novo_inicio < existente_fim and novo_fim > existente_inicio:
-            con.close()
-            return "Horário ocupado", 409
-
     try:
+        con.execute("BEGIN IMMEDIATE")
+        if not con.execute("SELECT id FROM utilizadores WHERE id = ? AND ativo = 1", (barbeiro_id,)).fetchone():
+            return "Barbeiro inválido", 400
+        for inicio_item in inicios:
+            fim_item = inicio_item + timedelta(minutes=duracao)
+            conflitos = con.execute("""
+                SELECT inicio, duracao_minutos FROM marcacoes
+                WHERE estado != 'cancelada' AND barbeiro_id = ?
+                UNION ALL
+                SELECT inicio, duracao_minutos FROM reservas_online
+                WHERE barbeiro_id = ? AND estado = 'aguarda_pagamento' AND expira_em > ?
+            """, (barbeiro_id, barbeiro_id, datetime.now().astimezone().isoformat(timespec="seconds"))).fetchall()
+            for m in conflitos:
+                existente_inicio = datetime.fromisoformat(m["inicio"])
+                existente_fim = existente_inicio + timedelta(minutes=m["duracao_minutos"])
+                if inicio_item < existente_fim and fim_item > existente_inicio:
+                    return f"Horário ocupado em {inicio_item.strftime('%d/%m/%Y %H:%M')}. A série não foi criada.", 409
+
         cur = con.cursor()
         cliente = cur.execute("""
             SELECT
@@ -3132,179 +3153,207 @@ def nova_marcacao():
         if not cliente:
             email_cliente = (email or "").strip()
 
-        cur.execute("""
-            INSERT INTO marcacoes
-            (cliente_id, inicio, duracao_minutos, servico, observacoes, barbeiro_id, criado_por_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (cliente_id, inicio, duracao, servico, observacoes, barbeiro_id, utilizador["id"]))
-        marcacao_id = cur.lastrowid
+        marcacao_ids = []
+        for inicio_item in inicios:
+            cur.execute("""
+                INSERT INTO marcacoes
+                (cliente_id, inicio, duracao_minutos, servico, observacoes, barbeiro_id, criado_por_id, serie_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (cliente_id, inicio_item.isoformat(timespec="minutes"), duracao, servico, observacoes, barbeiro_id, utilizador["id"], serie_id))
+            marcacao_id = cur.lastrowid
+            marcacao_ids.append(marcacao_id)
 
-        # -------------------------------------------------
-        # EMAIL — confirmação e lembretes por barbeiro
-        # -------------------------------------------------
-        if email_ativo and email_cliente:
-            data_formatada_email = novo_inicio.strftime("%d/%m/%Y")
-            hora_formatada_email = novo_inicio.strftime("%H:%M")
+            # -------------------------------------------------
+            # EMAIL — confirmação e lembretes por barbeiro
+            # -------------------------------------------------
+            if email_ativo and email_cliente:
+                data_formatada_email = inicio_item.strftime("%d/%m/%Y")
+                hora_formatada_email = inicio_item.strftime("%H:%M")
 
-            barbeiro_nome = (
-                email_config["nome"]
-                if email_config
-                else ""
-            )
-
-            dados_modelo = {
-                "cliente": nome,
-                "barbeiro": barbeiro_nome,
-                "data": data_formatada_email,
-                "hora": hora_formatada_email,
-                "servico": servico or "",
-            }
-
-            # Confirmação
-            if email_config["email_confirmacao"]:
-                modelo = renderizar_modelo_comunicacao(
-                    con,
-                    "email_confirmacao",
-                    **dados_modelo
+                barbeiro_nome = (
+                    email_config["nome"]
+                    if email_config
+                    else ""
                 )
 
-                if modelo:
-                    cur.execute("""
-                        INSERT OR IGNORE INTO email_fila
-                        (
+                dados_modelo = {
+                    "cliente": nome,
+                    "barbeiro": barbeiro_nome,
+                    "data": data_formatada_email,
+                    "hora": hora_formatada_email,
+                    "servico": servico or "",
+                }
+
+                # Confirmação
+                if email_config["email_confirmacao"]:
+                    modelo = renderizar_modelo_comunicacao(
+                        con,
+                        "email_confirmacao",
+                        **dados_modelo
+                    )
+
+                    if modelo:
+                        cur.execute("""
+                            INSERT OR IGNORE INTO email_fila
+                            (
+                                cliente_id,
+                                marcacao_id,
+                                barbeiro_id,
+                                email_destino,
+                                tipo,
+                                assunto,
+                                mensagem,
+                                estado,
+                                previsto_para,
+                                idempotency_key
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?)
+                        """, (
                             cliente_id,
                             marcacao_id,
                             barbeiro_id,
-                            email_destino,
-                            tipo,
-                            assunto,
-                            mensagem,
-                            estado,
-                            previsto_para,
-                            idempotency_key
+                            email_cliente,
+                            "confirmacao",
+                            modelo["assunto"] or "Marcação confirmada",
+                            modelo["conteudo"],
+                            datetime.now().isoformat(timespec="seconds"),
+                            f"email_confirmacao:{marcacao_id}",
+                        ))
+
+                # Lembrete 24h
+                if email_config["email_lembrete_24h"]:
+                    previsto_email_24h = inicio_item - timedelta(hours=24)
+
+                    if previsto_email_24h > datetime.now():
+                        modelo = renderizar_modelo_comunicacao(
+                            con,
+                            "email_lembrete_24h",
+                            **dados_modelo
                         )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?)
-                    """, (
-                        cliente_id,
-                        marcacao_id,
-                        barbeiro_id,
-                        email_cliente,
-                        "confirmacao",
-                        modelo["assunto"] or "Marcação confirmada",
-                        modelo["conteudo"],
-                        datetime.now().isoformat(timespec="seconds"),
-                        f"email_confirmacao:{marcacao_id}",
-                    ))
 
-            # Lembrete 24h
-            if email_config["email_lembrete_24h"]:
-                previsto_email_24h = novo_inicio - timedelta(hours=24)
-
-                if previsto_email_24h > datetime.now():
-                    modelo = renderizar_modelo_comunicacao(
-                        con,
-                        "email_lembrete_24h",
-                        **dados_modelo
-                    )
-
-                    if modelo:
-                        cur.execute("""
-                            INSERT OR IGNORE INTO email_fila
-                            (
+                        if modelo:
+                            cur.execute("""
+                                INSERT OR IGNORE INTO email_fila
+                                (
+                                    cliente_id,
+                                    marcacao_id,
+                                    barbeiro_id,
+                                    email_destino,
+                                    tipo,
+                                    assunto,
+                                    mensagem,
+                                    estado,
+                                    previsto_para,
+                                    idempotency_key
+                                )
+                                VALUES (?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?)
+                            """, (
                                 cliente_id,
                                 marcacao_id,
                                 barbeiro_id,
-                                email_destino,
-                                tipo,
-                                assunto,
-                                mensagem,
-                                estado,
-                                previsto_para,
-                                idempotency_key
-                            )
-                            VALUES (?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?)
-                        """, (
-                            cliente_id,
-                            marcacao_id,
-                            barbeiro_id,
-                            email_cliente,
-                            "lembrete_24h",
-                            modelo["assunto"] or "Lembrete de marcação",
-                            modelo["conteudo"],
-                            previsto_email_24h.isoformat(timespec="seconds"),
-                            f"email_lembrete_24h:{marcacao_id}",
-                        ))
+                                email_cliente,
+                                "lembrete_24h",
+                                modelo["assunto"] or "Lembrete de marcação",
+                                modelo["conteudo"],
+                                previsto_email_24h.isoformat(timespec="seconds"),
+                                f"email_lembrete_24h:{marcacao_id}",
+                            ))
 
-            # Lembrete 1h
-            if email_config["email_lembrete_1h"]:
-                previsto_email_1h = novo_inicio - timedelta(hours=1)
+                # Lembrete 1h
+                if email_config["email_lembrete_1h"]:
+                    previsto_email_1h = inicio_item - timedelta(hours=1)
 
-                if previsto_email_1h > datetime.now():
-                    modelo = renderizar_modelo_comunicacao(
-                        con,
-                        "email_lembrete_1h",
-                        **dados_modelo
-                    )
+                    if previsto_email_1h > datetime.now():
+                        modelo = renderizar_modelo_comunicacao(
+                            con,
+                            "email_lembrete_1h",
+                            **dados_modelo
+                        )
 
-                    if modelo:
-                        cur.execute("""
-                            INSERT OR IGNORE INTO email_fila
-                            (
+                        if modelo:
+                            cur.execute("""
+                                INSERT OR IGNORE INTO email_fila
+                                (
+                                    cliente_id,
+                                    marcacao_id,
+                                    barbeiro_id,
+                                    email_destino,
+                                    tipo,
+                                    assunto,
+                                    mensagem,
+                                    estado,
+                                    previsto_para,
+                                    idempotency_key
+                                )
+                                VALUES (?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?)
+                            """, (
                                 cliente_id,
                                 marcacao_id,
                                 barbeiro_id,
-                                email_destino,
-                                tipo,
-                                assunto,
-                                mensagem,
-                                estado,
-                                previsto_para,
-                                idempotency_key
-                            )
-                            VALUES (?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?)
-                        """, (
-                            cliente_id,
-                            marcacao_id,
-                            barbeiro_id,
-                            email_cliente,
-                            "lembrete_1h",
-                            modelo["assunto"] or "Lembrete de marcação",
-                            modelo["conteudo"],
-                            previsto_email_1h.isoformat(timespec="seconds"),
-                            f"email_lembrete_1h:{marcacao_id}",
-                        ))
+                                email_cliente,
+                                "lembrete_1h",
+                                modelo["assunto"] or "Lembrete de marcação",
+                                modelo["conteudo"],
+                                previsto_email_1h.isoformat(timespec="seconds"),
+                                f"email_lembrete_1h:{marcacao_id}",
+                            ))
 
-        # Lembrete por SMS às 18:00 do dia anterior.
-        # Só é criado se essa hora ainda estiver no futuro.
-        previsto_para = datetime.combine(
-            novo_inicio.date() - timedelta(days=1),
-            datetime.strptime("18:00", "%H:%M").time()
-        )
-
-        if sms_ativo and previsto_para > datetime.now():
-            data_formatada = novo_inicio.strftime("%d/%m/%Y")
-            hora_formatada = novo_inicio.strftime("%H:%M")
-
-            mensagem_lembrete = (
-                f"Blessed Barbearia: Ola {nome}, lembramos que tem uma marcacao amanha. "
-                f"Data: {data_formatada}. Hora: {hora_formatada}."
+            # Lembrete por SMS às 18:00 do dia anterior.
+            # Só é criado se essa hora ainda estiver no futuro.
+            previsto_para = datetime.combine(
+                inicio_item.date() - timedelta(days=1),
+                datetime.strptime("18:00", "%H:%M").time()
             )
 
+            if sms_ativo and previsto_para > datetime.now():
+                data_formatada = inicio_item.strftime("%d/%m/%Y")
+                hora_formatada = inicio_item.strftime("%H:%M")
+
+                mensagem_lembrete = (
+                    f"Blessed Barbearia: Ola {nome}, lembramos que tem uma marcacao amanha. "
+                    f"Data: {data_formatada}. Hora: {hora_formatada}."
+                )
+
+                cur.execute("""
+                    INSERT OR IGNORE INTO sms_fila
+                    (cliente_id, telefone_id, marcacao_id, telefone_destino, tipo,
+                     mensagem, previsto_para, idempotency_key)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    cliente_id,
+                    telefone_id,
+                    marcacao_id,
+                    telefone,
+                    "lembrete_dia_anterior",
+                    mensagem_lembrete,
+                    previsto_para.isoformat(timespec="seconds"),
+                    f"lembrete_dia_anterior:{marcacao_id}",
+                ))
+
+            previsto_1h = inicio_item - timedelta(hours=1)
+            if sms_ativo and previsto_1h > datetime.now():
+                cur.execute("""
+                    INSERT OR IGNORE INTO sms_fila
+                    (cliente_id, telefone_id, marcacao_id, telefone_destino, tipo,
+                     mensagem, previsto_para, idempotency_key)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (cliente_id, telefone_id, marcacao_id, telefone, "lembrete_1h",
+                      f"Blessed Barbearia: Ola {nome}, a sua marcacao e hoje as {inicio_item.strftime('%H:%M')}.",
+                      previsto_1h.isoformat(timespec="seconds"), f"lembrete_1h:{marcacao_id}"))
+
+        if sms_ativo and serie_id:
+            datas = ", ".join(item.strftime("%d/%m/%Y") for item in inicios)
+            texto_serie = (
+                f"Blessed Barbearia: Ola {nome}, confirmamos as suas marcacoes "
+                f"para os dias {datas}, sempre as {novo_inicio.strftime('%H:%M')}."
+            )
             cur.execute("""
                 INSERT OR IGNORE INTO sms_fila
                 (cliente_id, telefone_id, marcacao_id, telefone_destino, tipo,
                  mensagem, previsto_para, idempotency_key)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                cliente_id,
-                telefone_id,
-                marcacao_id,
-                telefone,
-                "lembrete_dia_anterior",
-                mensagem_lembrete,
-                previsto_para.isoformat(timespec="seconds"),
-                f"lembrete_dia_anterior:{marcacao_id}",
-            ))
+                VALUES (?, ?, ?, ?, 'confirmacao_serie', ?, ?, ?)
+            """, (cliente_id, telefone_id, marcacao_ids[0], telefone, texto_serie,
+                  datetime.now().isoformat(timespec="seconds"), f"confirmacao_serie:{serie_id}"))
 
         con.commit()
     except Exception:
@@ -3321,7 +3370,7 @@ def nova_marcacao():
         f"Data: {data_formatada}. Hora: {hora_formatada}."
     )
 
-    if sms_ativo:
+    if sms_ativo and not serie_id:
         enviar_sms_do_barbeiro(barbeiro_id, telefone, texto_sms)
 
     # Reabrir a agenda do profissional que recebeu a marcação, em vez da
@@ -3329,6 +3378,49 @@ def nova_marcacao():
     return redirect(url_for(
         "semana", data=novo_inicio.date().isoformat(), barbeiro=barbeiro_id
     ))
+
+@app.route("/marcacoes/<int:marcacao_id>/cancelar-serie-futura", methods=["POST"])
+def cancelar_serie_futura(marcacao_id):
+    con = get_db()
+    try:
+        con.execute("BEGIN IMMEDIATE")
+        marcacao = con.execute("SELECT * FROM marcacoes WHERE id = ?", (marcacao_id,)).fetchone()
+        if not marcacao:
+            return "Marcação não encontrada", 404
+        if not pode_alterar_marcacao(marcacao):
+            return "Sem permissão para esta marcação", 403
+        if not marcacao["serie_id"]:
+            return "Esta marcação não pertence a uma série", 400
+        limite = max(marcacao["inicio"], datetime.now().isoformat(timespec="seconds"))
+        futuras = con.execute("""
+            SELECT * FROM marcacoes WHERE serie_id = ? AND barbeiro_id = ?
+            AND inicio >= ? AND estado = 'marcada'
+        """, (marcacao["serie_id"], marcacao["barbeiro_id"], limite)).fetchall()
+        if any(not pode_alterar_marcacao(item) for item in futuras):
+            return "Sem permissão para esta série", 403
+        ids = [item["id"] for item in futuras]
+        if ids:
+            placeholders = ",".join("?" for _ in ids)
+            con.execute(f"UPDATE marcacoes SET estado = 'cancelada', atualizado_em = CURRENT_TIMESTAMP WHERE id IN ({placeholders})", ids)
+            con.execute(f"""
+                UPDATE sms_fila SET estado = 'cancelado', erro = 'Série cancelada', ultima_tentativa_em = ?
+                WHERE marcacao_id IN ({placeholders}) AND estado = 'pendente' AND tipo != 'confirmacao_serie'
+            """, [datetime.now().isoformat(timespec="seconds"), *ids])
+            con.execute(f"UPDATE email_fila SET estado = 'cancelado' WHERE marcacao_id IN ({placeholders}) AND estado = 'pendente'", ids)
+            restantes = con.execute("SELECT 1 FROM marcacoes WHERE serie_id = ? AND barbeiro_id = ? AND estado = 'marcada' AND inicio >= ?", (marcacao["serie_id"], marcacao["barbeiro_id"], datetime.now().isoformat(timespec="seconds"))).fetchone()
+            if not restantes:
+                con.execute("""UPDATE sms_fila SET estado = 'cancelado', erro = 'Série cancelada'
+                    WHERE tipo = 'confirmacao_serie' AND estado = 'pendente'
+                    AND marcacao_id IN (SELECT id FROM marcacoes WHERE serie_id = ? AND barbeiro_id = ?)
+                """, (marcacao["serie_id"], marcacao["barbeiro_id"]))
+        con.commit()
+        return redirect(url_for("semana", data=marcacao["inicio"][:10], barbeiro=marcacao["barbeiro_id"]))
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
+
 
 @app.route("/marcacoes/<int:marcacao_id>/duracao", methods=["POST"])
 def alterar_duracao_marcacao(marcacao_id):

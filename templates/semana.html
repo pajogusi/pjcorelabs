@@ -122,7 +122,7 @@
                                  style="--deslocamento: {{ m.deslocamento }}; --duracao: {{ m.duracao }};"
                                  data-marcacao-id="{{ m.id }}" data-nome="{{ m.nome }}"
                                  data-hora-real="{{ m.hora }}" data-data-real="{{ m.inicio[:10] }}"
-                                 data-estado="{{ m.estado }}" data-duracao="{{ m.duracao }}"
+                                 data-estado="{{ m.estado }}" data-duracao="{{ m.duracao }}" data-serie-id="{{ m.serie_id or '' }}"
                                  title="{{ m.hora }}–{{ m.hora_fim }} · {{ m.nome }} · {{ m.estado }} · {{ m.duracao }} min{% if m.sobreposicoes %} · ⚠ Sobreposição{% endif %}">
                                 {% for faixa in m.sobreposicoes %}
                                 <span class="faixa-sobreposicao"
@@ -165,9 +165,13 @@
                 <label>Data de nascimento <span class="campo-opcional">opcional</span><input type="text" id="nascimentoCliente" inputmode="numeric" autocomplete="bday" placeholder="DD/MM/AAAA" maxlength="10"><input type="hidden" name="data_nascimento" id="nascimentoClienteIso"></label>
 
                 <label>Duração<select name="duracao"><option value="15">15 minutos</option><option value="30" selected>30 minutos</option><option value="45">45 minutos</option><option value="60">60 minutos</option><option value="90">90 minutos</option></select></label>
-                {% if utilizador.papel == 'gestor' or pode_marcar_outros %}
+                {% if utilizador.papel == 'gestor' or utilizador.e_admin or pode_marcar_outros %}
                 <label>Barbeiro<select name="barbeiro_id" id="barbeiroMarcacao" required><option value="">Escolher</option>{% for barbeiro in barbeiros %}<option value="{{ barbeiro.id }}" {% if barbeiro_selecionado == barbeiro.id %}selected{% endif %}>{{ barbeiro.nome }}</option>{% endfor %}</select></label>
                 {% else %}<input type="hidden" name="barbeiro_id" id="barbeiroMarcacao" value="{{ utilizador.id }}">{% endif %}
+            </div>
+            <div class="form-grid-duplo">
+                <label>Repetição<select name="repetir_semanalmente" id="repetirSemanalmente"><option value="0">Só esta marcação</option><option value="1">Repetir semanalmente</option></select></label>
+                <label id="campoRepeticoes" hidden>Total de marcações<input type="number" name="repeticoes" id="repeticoesMarcacao" min="2" max="52" value="4" disabled><span class="campo-opcional">Inclui a primeira. Mesmo dia e hora todas as semanas.</span></label>
             </div>
             <div id="estadoCliente" class="estado-cliente"></div>
             <label>Observações <span class="campo-opcional">opcional</span><textarea name="observacoes" rows="3" placeholder="Notas úteis desta marcação"></textarea></label>
@@ -236,6 +240,9 @@
                 <button type="submit" name="estado" value="marcada" class="botao-estado botao-estado-secundario">Manter agendada</button>
             </div>
         </form>
+        <form id="formCancelarSerie" method="post" hidden>
+            <button type="submit" class="botao-estado">Cancelar esta e as futuras marcações da série</button>
+        </form>
         <p class="nota-historico">A marcação não é apagada. O estado fica guardado no histórico do cliente.</p>
     </section>
 </div>
@@ -247,7 +254,7 @@ const telefoneCliente=document.getElementById('telefoneCliente'),nomeCliente=doc
 let temporizadorTelefone=null;
 function dataPt(data){if(!data)return '';const p=data.slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:data;}
 function formatarDataMarcacao(){const data=campoData.value,hora=campoHora.value;if(!data||!hora)return;const p=data.split('-'),nomes=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];const d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));document.getElementById('horarioMarcacao').textContent=nomes[d.getDay()]+' · '+p[2]+'/'+p[1]+'/'+p[0];document.getElementById('horaDestaque').textContent=hora;campoInicio.value=data+'T'+hora;}
-async function verificarDisponibilidade(){const duracao=document.querySelector('#formNovaMarcacao [name="duracao"]').value,estado=document.getElementById('estadoDisponibilidade'),marcar=document.querySelector('.botao-marcar');estado.className='estado-disponibilidade';estado.textContent='A verificar...';marcar.disabled=true;if(!barbeiroMarcacao.value){estado.textContent='Escolhe o barbeiro.';return;}try{const params=new URLSearchParams({data:campoData.value,hora:campoHora.value,duracao,barbeiro_id:barbeiroMarcacao.value});const resposta=await fetch('/api/disponibilidade?'+params.toString()),resultado=await resposta.json();if(!resposta.ok||!resultado.ok)throw new Error();if(resultado.disponivel){estado.className='estado-disponibilidade disponibilidade-livre';estado.textContent='✓ Disponível · '+resultado.inicio+'–'+resultado.fim;marcar.disabled=false;}else{estado.className='estado-disponibilidade disponibilidade-ocupada';if(resultado.conflitos&&resultado.conflitos.length){const c=resultado.conflitos[0];estado.textContent='⚠ Ocupado · '+c.inicio+'–'+c.fim+' · '+c.nome;}else estado.textContent='⚠ Horário indisponível';}}catch(e){estado.className='estado-disponibilidade disponibilidade-ocupada';estado.textContent='⚠ Não foi possível verificar o horário';}}
+async function verificarDisponibilidade(){const duracao=document.querySelector('#formNovaMarcacao [name="duracao"]').value,estado=document.getElementById('estadoDisponibilidade'),marcar=document.querySelector('.botao-marcar');estado.className='estado-disponibilidade';estado.textContent='A verificar...';marcar.disabled=true;if(!barbeiroMarcacao.value){estado.textContent='Escolhe o barbeiro.';return;}try{const params=new URLSearchParams({data:campoData.value,hora:campoHora.value,duracao,barbeiro_id:barbeiroMarcacao.value});const resposta=await fetch('/api/disponibilidade?'+params.toString()),resultado=await resposta.json();if(!resposta.ok||!resultado.ok)throw new Error();if(resultado.disponivel){estado.className='estado-disponibilidade disponibilidade-livre';estado.textContent='✓ Disponível · '+resultado.inicio+'–'+resultado.fim+(document.getElementById('repetirSemanalmente').value==='1'?' · As restantes datas serão verificadas ao guardar.':'');marcar.disabled=false;}else{estado.className='estado-disponibilidade disponibilidade-ocupada';if(resultado.conflitos&&resultado.conflitos.length){const c=resultado.conflitos[0];estado.textContent='⚠ Ocupado · '+c.inicio+'–'+c.fim+' · '+c.nome;}else estado.textContent='⚠ Horário indisponível';}}catch(e){estado.className='estado-disponibilidade disponibilidade-ocupada';estado.textContent='⚠ Não foi possível verificar o horário';}}
 async function procurarClientePorTelefone(){
     const telefone=telefoneCliente.value.trim();
     estadoCliente.textContent='';
@@ -334,11 +341,13 @@ async function procurarClientePorTelefone(){
 function nascimentoParaIso(){const v=nascimentoCliente.value.trim();if(!v){nascimentoClienteIso.value='';return true;}const m=v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(!m){nascimentoCliente.setCustomValidity('Usa o formato DD/MM/AAAA');return false;}const d=new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));if(d.getFullYear()!=Number(m[3])||d.getMonth()!=Number(m[2])-1||d.getDate()!=Number(m[1])){nascimentoCliente.setCustomValidity('Data inválida');return false;}nascimentoCliente.setCustomValidity('');nascimentoClienteIso.value=m[3]+'-'+m[2]+'-'+m[1];return true;}
 nascimentoCliente.addEventListener('input',function(){this.setCustomValidity('');});
 document.getElementById('formNovaMarcacao').addEventListener('submit',function(e){if(!nascimentoParaIso()){e.preventDefault();nascimentoCliente.reportValidity();}});
+document.getElementById('repetirSemanalmente').addEventListener('change',function(){const repetir=this.value==='1';document.getElementById('campoRepeticoes').hidden=!repetir;document.getElementById('repeticoesMarcacao').disabled=!repetir;verificarDisponibilidade();});
+document.getElementById('formCancelarSerie').addEventListener('submit',function(e){if(!confirm('Cancelar esta e as futuras marcações da série? As visitas anteriores são mantidas.'))e.preventDefault();});
 function atualizarMarcacao(){formatarDataMarcacao();verificarDisponibilidade();}
 function mudarDiaMarcacao(diferenca){const p=campoData.value.split('-'),d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));d.setDate(d.getDate()+diferenca);campoData.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');atualizarMarcacao();}
 function mudarHoraMarcacao(minutos){const p=campoData.value.split('-'),h=campoHora.value.split(':'),d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]),Number(h[0]),Number(h[1]));d.setMinutes(d.getMinutes()+minutos);campoData.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');campoHora.value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');atualizarMarcacao();}
-function limparFormularioCliente(){document.getElementById('formNovaMarcacao').reset();estadoCliente.textContent='';estadoCliente.className='estado-cliente';}
-document.querySelectorAll('.celula-agenda').forEach(function(celula){celula.addEventListener('click',function(evento){const marcacao=evento.target.closest('.marcacao-grelha');if(marcacao){evento.stopPropagation();document.getElementById('resumoEstadoMarcacao').textContent=dataPt(marcacao.dataset.dataReal)+' · '+marcacao.dataset.horaReal+' · '+marcacao.dataset.nome;document.getElementById('estadoAtualMarcacao').textContent=marcacao.dataset.estado;document.getElementById('duracaoMarcacao').value=marcacao.dataset.duracao;document.querySelectorAll('.botao-duracao').forEach(function(b){b.classList.toggle('ativo',b.dataset.duracao===marcacao.dataset.duracao);});document.getElementById('avisoDuracaoMarcacao').textContent='';document.getElementById('formDuracaoMarcacao').action='/marcacoes/'+marcacao.dataset.marcacaoId+'/duracao';document.getElementById('formEstadoMarcacao').action='/marcacoes/'+marcacao.dataset.marcacaoId+'/estado';modalEstado.hidden=false;return;}limparFormularioCliente();campoData.value=celula.dataset.data;campoHora.value=celula.dataset.hora;atualizarMarcacao();modal.hidden=false;setTimeout(function(){telefoneCliente.focus();},50);});});
+function limparFormularioCliente(){document.getElementById('formNovaMarcacao').reset();document.getElementById('campoRepeticoes').hidden=true;document.getElementById('repeticoesMarcacao').disabled=true;estadoCliente.textContent='';estadoCliente.className='estado-cliente';}
+document.querySelectorAll('.celula-agenda').forEach(function(celula){celula.addEventListener('click',function(evento){const marcacao=evento.target.closest('.marcacao-grelha');if(marcacao){evento.stopPropagation();document.getElementById('resumoEstadoMarcacao').textContent=dataPt(marcacao.dataset.dataReal)+' · '+marcacao.dataset.horaReal+' · '+marcacao.dataset.nome;document.getElementById('estadoAtualMarcacao').textContent=marcacao.dataset.estado;document.getElementById('duracaoMarcacao').value=marcacao.dataset.duracao;document.querySelectorAll('.botao-duracao').forEach(function(b){b.classList.toggle('ativo',b.dataset.duracao===marcacao.dataset.duracao);});document.getElementById('avisoDuracaoMarcacao').textContent='';document.getElementById('formDuracaoMarcacao').action='/marcacoes/'+marcacao.dataset.marcacaoId+'/duracao';document.getElementById('formEstadoMarcacao').action='/marcacoes/'+marcacao.dataset.marcacaoId+'/estado';const serie=document.getElementById('formCancelarSerie');serie.hidden=!marcacao.dataset.serieId;serie.action='/marcacoes/'+marcacao.dataset.marcacaoId+'/cancelar-serie-futura';modalEstado.hidden=false;return;}limparFormularioCliente();campoData.value=celula.dataset.data;campoHora.value=celula.dataset.hora;atualizarMarcacao();modal.hidden=false;setTimeout(function(){telefoneCliente.focus();},50);});});
 document.querySelectorAll('.botao-duracao').forEach(function(botao){
     botao.addEventListener('click',function(){
         document.getElementById('duracaoMarcacao').value=this.dataset.duracao;
@@ -459,3 +468,4 @@ document.getElementById('diaAnterior').addEventListener('click',function(){mudar
 </script>
 \n</body>
 </html>
+
