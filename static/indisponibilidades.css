@@ -1,4 +1,10 @@
 .tipo-agenda { display: inline-grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin-top: 10px; padding: 4px; border: 1px solid #333; border-radius: 10px; background: #111; }
+.campo-pesquisa-cliente { min-width: 0; }
+.campo-pesquisa-cliente label { display: block; margin-bottom: 6px; }
+.resultados-clientes { max-height: 180px; overflow-y: auto; margin-top: 4px; border: 1px solid #52667b; border-radius: 8px; background: #17212b; }
+.resultados-clientes button { display: block; width: 100%; padding: 9px 10px; background: transparent; border: 0; border-bottom: 1px solid #34414f; color: #fff; text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; }
+.resultados-clientes button:hover, .resultados-clientes button:focus-visible { background: #315b82; outline: 2px solid #83b9eb; outline-offset: -2px; }
+.aviso-pesquisa-clientes { font-size: 12px; color: #b9c9d8; margin-top: 4px; }
 .tipo-agenda-btn { min-width: 90px; min-height: 38px; padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: #aaa; font-weight: 700; cursor: pointer; }
 .tipo-agenda-btn.ativo { background: #315b82; color: #fff; }
 .bloqueio-pessoal { background: #5b3f78 !important; border: 1px solid #9870bd !important; outline: none !important; }

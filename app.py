@@ -9,6 +9,7 @@ import threading
 import sqlite3
 import urllib.error
 import urllib.request
+import unicodedata
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -512,6 +513,8 @@ def exigir_autenticacao():
         "novo_cliente",
         "clientes",
         "cliente_por_telefone",
+        "clientes_por_nome",
+        "cliente_para_marcacao",
         "disponibilidade",
         "nova_marcacao",
         "alterar_duracao_marcacao",
@@ -3079,31 +3082,32 @@ def cliente_por_telefone():
 
     con = get_db()
     cliente = con.execute("""
-        SELECT c.id, c.nome, c.email, c.data_nascimento, t.numero
+        SELECT c.id, c.nome, c.email, c.data_nascimento, c.barbeiro_id, t.numero
         FROM telefones t
         JOIN clientes c ON c.id = t.cliente_id
         WHERE t.numero_normalizado = ? AND t.atual = 1
+          AND (? OR c.barbeiro_id = ?)
         ORDER BY t.id DESC
         LIMIT 1
-    """, (numero,)).fetchone()
+    """, (numero, gestor(), utilizador_atual()["id"])).fetchone()
     if not cliente:
         con.close()
         return {"ok": True, "encontrado": False}
 
+    resultado = dados_cliente_marcacao(con, cliente)
+    con.close()
+    return {"ok": True, "encontrado": True, "cliente": resultado}
+
+
+def dados_cliente_marcacao(con, cliente):
     ultimas_visitas = con.execute("""
         SELECT inicio, estado
         FROM marcacoes
-        WHERE cliente_id = ?
+        WHERE cliente_id = ? AND (? OR barbeiro_id = ?)
         ORDER BY inicio DESC
         LIMIT 3
-    """, (cliente["id"],)).fetchall()
-
-    con.close()
-
+    """, (cliente["id"], gestor(), utilizador_atual()["id"])).fetchall()
     return {
-        "ok": True,
-        "encontrado": True,
-        "cliente": {
             "id": cliente["id"],
             "nome": cliente["nome"],
             "telefone": cliente["numero"],
@@ -3116,8 +3120,54 @@ def cliente_por_telefone():
                 }
                 for visita in ultimas_visitas
             ],
-        },
     }
+
+
+@app.route("/api/clientes/por-nome")
+def clientes_por_nome():
+    def simplificar(valor):
+        return "".join(c for c in unicodedata.normalize("NFD", valor or "").casefold()
+                       if not unicodedata.combining(c))
+
+    nome = request.args.get("nome", "").strip()
+    if len(nome) < 2:
+        return {"ok": True, "clientes": [], "mais_resultados": False}
+    if len(nome) > 80:
+        return {"ok": False, "erro": "Escreve até 80 caracteres."}, 400
+    con = get_db()
+    try:
+        con.create_function("simplificar_nome", 1, simplificar)
+        clientes = con.execute("""
+            SELECT c.id, c.nome,
+                (SELECT t.numero FROM telefones t WHERE t.cliente_id = c.id AND t.atual = 1
+                 ORDER BY t.id DESC LIMIT 1) AS telefone
+            FROM clientes c
+            WHERE (? OR c.barbeiro_id = ?)
+              AND instr(simplificar_nome(c.nome), ?) > 0
+            ORDER BY simplificar_nome(c.nome), c.id
+            LIMIT 21
+        """, (gestor(), utilizador_atual()["id"], simplificar(nome))).fetchall()
+        return {"ok": True, "clientes": [dict(c) for c in clientes[:20]],
+                "mais_resultados": len(clientes) > 20}
+    finally:
+        con.close()
+
+
+@app.route("/api/clientes/<int:cliente_id>/marcacao")
+def cliente_para_marcacao(cliente_id):
+    con = get_db()
+    try:
+        cliente = con.execute("""
+            SELECT c.*,
+                (SELECT t.numero FROM telefones t WHERE t.cliente_id = c.id AND t.atual = 1
+                 ORDER BY t.id DESC LIMIT 1) AS numero
+            FROM clientes c WHERE c.id = ?
+        """, (cliente_id,)).fetchone()
+        if not pode_gerir_cliente(cliente):
+            return {"ok": False, "erro": "Cliente não encontrado."}, 404
+        return {"ok": True, "encontrado": True, "cliente": dados_cliente_marcacao(con, cliente)}
+    finally:
+        con.close()
 
 
 @app.route("/api/disponibilidade")
@@ -3177,6 +3227,14 @@ def nova_marcacao():
     nome = request.form.get("nome", "").strip()
     telefone = request.form.get("telefone", "").strip()
     email = request.form.get("email", "").strip()
+    cliente_escolhido = request.form.get("cliente_id", "").strip()
+    if cliente_escolhido:
+        try:
+            if not 0 < int(cliente_escolhido) <= 9223372036854775807:
+                raise ValueError
+            cliente_escolhido = str(int(cliente_escolhido))
+        except ValueError:
+            return "Cliente inválido", 400
 
     try:
         data_nascimento = normalizar_data_nascimento(
@@ -3251,6 +3309,10 @@ def nova_marcacao():
                     return f"Horário ocupado em {inicio_item.strftime('%d/%m/%Y %H:%M')}. A série não foi criada.", 409
 
         cur = con.cursor()
+        if cliente_escolhido:
+            escolhido = cur.execute("SELECT id, barbeiro_id FROM clientes WHERE id = ?", (int(cliente_escolhido),)).fetchone()
+            if not pode_gerir_cliente(escolhido):
+                abort(403)
         cliente = cur.execute("""
             SELECT
                 c.id,
@@ -3259,9 +3321,22 @@ def nova_marcacao():
             FROM telefones t
             JOIN clientes c ON c.id = t.cliente_id
             WHERE t.numero_normalizado = ? AND t.atual = 1
+              AND (? = '' OR c.id = ?)
             ORDER BY t.id DESC
             LIMIT 1
-        """, (numero_normalizado,)).fetchone()
+        """, (numero_normalizado, cliente_escolhido, cliente_escolhido)).fetchone()
+        if cliente_escolhido and not cliente:
+            if cur.execute("SELECT 1 FROM telefones WHERE cliente_id = ? AND atual = 1", (int(cliente_escolhido),)).fetchone():
+                return "O telefone do cliente escolhido mudou. Volta a procurar o cliente.", 409
+            telefone_id = cur.execute("""
+                INSERT INTO telefones (cliente_id, numero, numero_normalizado)
+                VALUES (?, ?, ?)
+            """, (int(cliente_escolhido), telefone, numero_normalizado)).lastrowid
+            cliente = cur.execute("""
+                SELECT c.id, c.email, t.id AS telefone_id
+                FROM clientes c JOIN telefones t ON t.cliente_id = c.id
+                WHERE c.id = ? AND t.id = ?
+            """, (int(cliente_escolhido), telefone_id)).fetchone()
 
         if cliente:
             cliente_id = cliente["id"]
