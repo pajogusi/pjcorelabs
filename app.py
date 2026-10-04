@@ -437,15 +437,24 @@ def barbeiro_livre_para_reserva(con, barbeiro_id, inicio, duracao_minutos):
     return True
 
 
-def conflitos_indisponibilidade(con, barbeiro_id, inicio, fim):
-    """Encerramentos globais e ausências só do profissional deste horário."""
-    return con.execute("""
+def conflitos_indisponibilidade(con, barbeiro_id, inicio, fim, ignorar_bloqueio_id=None):
+    """Encerramentos globais, ausências e compromissos do profissional."""
+    periodos = list(con.execute("""
         SELECT id, tipo, inicio, fim, motivo, barbeiro_id
         FROM indisponibilidades
         WHERE inicio < ? AND fim > ?
           AND (tipo = 'encerramento' OR barbeiro_id = ?)
         ORDER BY inicio
-    """, (fim.isoformat(timespec="minutes"), inicio.isoformat(timespec="minutes"), barbeiro_id)).fetchall()
+    """, (fim.isoformat(timespec="minutes"), inicio.isoformat(timespec="minutes"), barbeiro_id)).fetchall())
+
+    for item in con.execute("SELECT * FROM bloqueios_pessoais WHERE barbeiro_id = ? AND (? IS NULL OR id != ?)",
+                            (barbeiro_id, ignorar_bloqueio_id, ignorar_bloqueio_id)).fetchall():
+        item_inicio = datetime.fromisoformat(item["inicio"])
+        item_fim = item_inicio + timedelta(minutes=item["duracao_minutos"])
+        if inicio < item_fim and fim > item_inicio:
+            periodos.append(dict(id=item["id"], tipo="pessoal", inicio=item["inicio"],
+                fim=item_fim.isoformat(timespec="minutes"), motivo=item["descricao"], barbeiro_id=barbeiro_id))
+    return periodos
 
 
 def pode_gerir_indisponibilidade(item):
@@ -495,6 +504,9 @@ def exigir_autenticacao():
         "cancelar_serie_futura",
         "nova_indisponibilidade",
         "eliminar_indisponibilidade",
+        "novo_bloqueio_pessoal",
+        "editar_bloqueio_pessoal",
+        "eliminar_bloqueio_pessoal",
     }
 
     if request.endpoint not in permitidos_barbeiro:
@@ -776,6 +788,20 @@ def garantir_esquema():
         )
     """)
     con.execute("CREATE INDEX IF NOT EXISTS idx_indisponibilidades_intervalo ON indisponibilidades (barbeiro_id, inicio, fim)")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS bloqueios_pessoais (
+            id INTEGER PRIMARY KEY,
+            inicio TEXT NOT NULL,
+            duracao_minutos INTEGER NOT NULL CHECK (duracao_minutos BETWEEN 15 AND 240),
+            descricao TEXT NOT NULL,
+            barbeiro_id INTEGER NOT NULL REFERENCES utilizadores(id),
+            criado_por_id INTEGER NOT NULL REFERENCES utilizadores(id),
+            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    con.execute("CREATE INDEX IF NOT EXISTS idx_bloqueios_barbeiro_inicio ON bloqueios_pessoais (barbeiro_id, inicio)")
+
 
     # Reservas online ficam separadas das marcações confirmadas: só passam à
     # agenda depois da confirmação de pagamento pelo fornecedor escolhido.
@@ -1208,6 +1234,22 @@ def semana():
     for item in indisponibilidades:
         if item["tipo"] == "ausencia" and not gestor() and item["barbeiro_id"] != utilizador["id"]:
             item["motivo"] = "Indisponível"
+    bloqueios = con.execute("""
+        SELECT b.*, u.nome AS barbeiro_nome FROM bloqueios_pessoais b
+        JOIN utilizadores u ON u.id = b.barbeiro_id
+        WHERE b.inicio < ? AND datetime(b.inicio, '+' || b.duracao_minutos || ' minutes') > datetime(?)
+          AND (b.barbeiro_id = ? OR ? = 1)
+        ORDER BY b.inicio
+    """, ((fim_semana + timedelta(days=1)).isoformat() + "T00:00", inicio_semana.isoformat() + "T00:00",
+          barbeiro_id, int(gestor() and barbeiro_id is None))).fetchall()
+    periodos_agenda = list(indisponibilidades)
+    for item in bloqueios:
+        periodo = dict(item, tipo="pessoal", motivo=item["descricao"],
+            fim=(datetime.fromisoformat(item["inicio"]) + timedelta(minutes=item["duracao_minutos"])).isoformat(timespec="minutes"),
+            pode_eliminar=gestor() or item["barbeiro_id"] == utilizador["id"])
+        if not gestor() and item["barbeiro_id"] != utilizador["id"]:
+            periodo["motivo"] = "Ocupado"
+        periodos_agenda.append(periodo)
     con.close()
 
     dias = []
@@ -1277,13 +1319,25 @@ def semana():
 
             atual["sobreposicoes"] = faixas
 
+        periodos_dia = []
+        inicio_grelha = datetime.combine(data_dia, datetime.min.time()).replace(hour=8)
+        fim_grelha = inicio_grelha.replace(hour=23)
+        for item in periodos_agenda:
+            inicio_visual = max(datetime.fromisoformat(item["inicio"]), inicio_grelha)
+            fim_visual = min(datetime.fromisoformat(item["fim"]), fim_grelha)
+            if inicio_visual >= fim_visual:
+                continue
+            hora_base = inicio_visual.replace(minute=(inicio_visual.minute // 30) * 30, second=0, microsecond=0)
+            periodos_dia.append(dict(item, hora_base=hora_base.strftime("%H:%M"),
+                hora=inicio_visual.strftime("%H:%M"), hora_fim=fim_visual.strftime("%H:%M"),
+                deslocamento=inicio_visual.minute-hora_base.minute,
+                duracao=int((fim_visual-inicio_visual).total_seconds() // 60)))
+
         dias.append({
             "data": data_dia.isoformat(),
             "nome": nomes_dias[numero],
             "marcacoes": marcacoes_dia,
-            "indisponibilidades": [item for item in indisponibilidades
-                if datetime.fromisoformat(item["inicio"]) < datetime.combine(data_dia + timedelta(days=1), datetime.min.time())
-                and datetime.fromisoformat(item["fim"]) > datetime.combine(data_dia, datetime.min.time())],
+            "periodos": periodos_dia,
             "total": len(marcacoes_dia),
         })
 
@@ -3047,7 +3101,8 @@ def disponibilidade():
     hora_pedida = request.args.get("hora", "").strip()
     try:
         duracao = int(request.args.get("duracao", 30))
-        if duracao not in (15, 30, 45, 60, 90):
+        duracoes_validas = range(15, 241, 15) if request.args.get("tipo") == "pessoal" else (15, 30, 45, 60, 90)
+        if duracao not in duracoes_validas:
             raise ValueError
         inicio = datetime.fromisoformat(f"{data_pedida}T{hora_pedida}")
         if inicio.tzinfo is not None:
@@ -3085,7 +3140,7 @@ def disponibilidade():
     for item in periodos:
         detalhes_permitidos = gestor() or barbeiro_id == utilizador["id"]
         conflitos.append({"id": item["id"], "tipo": item["tipo"],
-            "nome": (("Barbearia encerrada: " if item["tipo"] == "encerramento" else "Ausência: ") + item["motivo"]) if detalhes_permitidos else "Indisponível",
+            "nome": (({"encerramento": "Barbearia encerrada: ", "ausencia": "Ausência: ", "pessoal": "Pessoal: "}[item["tipo"]]) + item["motivo"]) if detalhes_permitidos else "Indisponível",
             "servico": "", "inicio": datetime.fromisoformat(item["inicio"]).strftime("%H:%M"),
             "fim": datetime.fromisoformat(item["fim"]).strftime("%H:%M")})
 
@@ -3449,6 +3504,93 @@ def nova_marcacao():
         "semana", data=novo_inicio.date().isoformat(), barbeiro=barbeiro_id
     ))
 
+def guardar_bloqueio_pessoal(bloqueio_id=None):
+    utilizador = utilizador_atual()
+    descricao = request.form.get("descricao", "").strip()
+    try:
+        inicio = datetime.fromisoformat(request.form.get("inicio", ""))
+        duracao = int(request.form.get("duracao", 60))
+        if inicio.tzinfo is not None or inicio.second or inicio.microsecond or duracao not in range(15, 241, 15) or not descricao:
+            raise ValueError
+    except (TypeError, ValueError):
+        return {"ok": False, "erro": "Indica descrição, início e duração válidos."}, 400
+    con = get_db()
+    try:
+        con.execute("BEGIN IMMEDIATE")
+        if bloqueio_id is not None:
+            bloqueio = con.execute("SELECT * FROM bloqueios_pessoais WHERE id = ?", (bloqueio_id,)).fetchone()
+            if not bloqueio:
+                return {"ok": False, "erro": "Compromisso não encontrado."}, 404
+            barbeiro_id = bloqueio["barbeiro_id"]
+        else:
+            barbeiro_id = request.form.get("barbeiro_id", type=int) or utilizador["id"]
+        if not gestor() and barbeiro_id != utilizador["id"]:
+            return {"ok": False, "erro": "Só podes gerir os teus compromissos."}, 403
+        if not con.execute("SELECT id FROM utilizadores WHERE id = ? AND ativo = 1 AND COALESCE(e_admin,0) = 0", (barbeiro_id,)).fetchone():
+            return {"ok": False, "erro": "Escolhe um profissional ativo."}, 400
+        fim = inicio + timedelta(minutes=duracao)
+        if conflitos_indisponibilidade(con, barbeiro_id, inicio, fim, ignorar_bloqueio_id=bloqueio_id):
+            return {"ok": False, "erro": "Este período já está ocupado por um compromisso, ausência ou encerramento."}, 409
+        candidatos = con.execute("""
+            SELECT inicio, duracao_minutos FROM marcacoes WHERE barbeiro_id = ? AND estado != 'cancelada'
+            UNION ALL
+            SELECT inicio, duracao_minutos FROM reservas_online
+            WHERE barbeiro_id = ? AND estado = 'aguarda_pagamento' AND expira_em > ?
+        """, (barbeiro_id, barbeiro_id, datetime.now().astimezone().isoformat(timespec="seconds"))).fetchall()
+        for item in candidatos:
+            item_inicio = datetime.fromisoformat(item["inicio"])
+            if inicio < item_inicio + timedelta(minutes=item["duracao_minutos"]) and fim > item_inicio:
+                return {"ok": False, "erro": "Existem marcações ou reservas neste horário."}, 409
+        if bloqueio_id is None:
+            cur = con.execute("""INSERT INTO bloqueios_pessoais
+                (inicio, duracao_minutos, descricao, barbeiro_id, criado_por_id) VALUES (?, ?, ?, ?, ?)
+            """, (inicio.isoformat(timespec="minutes"), duracao, descricao, barbeiro_id, utilizador["id"]))
+            bloqueio_id = cur.lastrowid
+            status = 201
+        else:
+            con.execute("""UPDATE bloqueios_pessoais SET inicio = ?, duracao_minutos = ?, descricao = ?,
+                atualizado_em = CURRENT_TIMESTAMP WHERE id = ?
+            """, (inicio.isoformat(timespec="minutes"), duracao, descricao, bloqueio_id))
+            status = 200
+        con.commit()
+        return {"ok": True, "id": bloqueio_id, "data": inicio.date().isoformat(), "barbeiro_id": barbeiro_id}, status
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
+
+
+@app.route("/bloqueios/novo", methods=["POST"])
+def novo_bloqueio_pessoal():
+    return guardar_bloqueio_pessoal()
+
+
+@app.route("/bloqueios/<int:bloqueio_id>/editar", methods=["POST"])
+def editar_bloqueio_pessoal(bloqueio_id):
+    return guardar_bloqueio_pessoal(bloqueio_id)
+
+
+@app.route("/bloqueios/<int:bloqueio_id>/eliminar", methods=["POST"])
+def eliminar_bloqueio_pessoal(bloqueio_id):
+    con = get_db()
+    try:
+        con.execute("BEGIN IMMEDIATE")
+        item = con.execute("SELECT * FROM bloqueios_pessoais WHERE id = ?", (bloqueio_id,)).fetchone()
+        if not item:
+            return {"ok": False, "erro": "Compromisso não encontrado."}, 404
+        if not gestor() and item["barbeiro_id"] != utilizador_atual()["id"]:
+            return {"ok": False, "erro": "Só podes eliminar os teus compromissos."}, 403
+        con.execute("DELETE FROM bloqueios_pessoais WHERE id = ?", (bloqueio_id,))
+        con.commit()
+        return {"ok": True}
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
+
+
 @app.route("/indisponibilidades/nova", methods=["POST"])
 def nova_indisponibilidade():
     tipo = request.form.get("tipo", "").strip()
@@ -3487,7 +3629,10 @@ def nova_indisponibilidade():
             SELECT r.id, r.inicio, r.duracao_minutos, 'Reserva online', r.barbeiro_id, 'reserva'
             FROM reservas_online r WHERE r.estado = 'aguarda_pagamento' AND r.expira_em > ?
               AND (? IS NULL OR r.barbeiro_id = ?)
-        """, (barbeiro_id, barbeiro_id, datetime.now().astimezone().isoformat(timespec="seconds"), barbeiro_id, barbeiro_id)).fetchall()
+            UNION ALL
+            SELECT b.id, b.inicio, b.duracao_minutos, b.descricao, b.barbeiro_id, 'pessoal'
+            FROM bloqueios_pessoais b WHERE (? IS NULL OR b.barbeiro_id = ?)
+        """, (barbeiro_id, barbeiro_id, datetime.now().astimezone().isoformat(timespec="seconds"), barbeiro_id, barbeiro_id, barbeiro_id, barbeiro_id)).fetchall()
         conflitos = []
         for item in candidatos:
             item_inicio = datetime.fromisoformat(item["inicio"])
@@ -3614,7 +3759,7 @@ def alterar_duracao_marcacao(marcacao_id):
     novo_fim = novo_inicio + timedelta(minutes=duracao)
     if conflitos_indisponibilidade(con, marcacao["barbeiro_id"], novo_inicio, novo_fim):
         con.close()
-        return {"ok": False, "erro": "A duração invade uma ausência ou encerramento."}, 409
+        return {"ok": False, "erro": "A duração invade um período pessoal, ausência ou encerramento."}, 409
 
     conflitos_db = con.execute("""
         SELECT m.id, m.inicio, m.duracao_minutos, c.nome

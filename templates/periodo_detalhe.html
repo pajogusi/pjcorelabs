@@ -1,0 +1,16 @@
+<div class="modal-marcacao" id="modalPeriodo" hidden>
+    <div class="modal-fundo" data-fechar-periodo></div>
+    <section class="form-marcacao modal-estado-conteudo" role="dialog" aria-modal="true" aria-labelledby="tituloPeriodo">
+        <div class="form-marcacao-topo"><div><h2 id="tituloPeriodo"></h2><p id="resumoPeriodo"></p></div><button type="button" class="fechar-modal" data-fechar-periodo aria-label="Fechar">×</button></div>
+        <p id="motivoPeriodo"></p>
+        <form id="formEditarPessoal" method="post" hidden>
+            <label>Descrição<input type="text" name="descricao" id="editarDescricaoPessoal" required></label>
+            <label>Início<input type="datetime-local" name="inicio" id="editarInicioPessoal" required></label>
+            <label>Duração<select name="duracao" id="editarDuracaoPessoal">{% for minutos in range(15, 241, 15) %}<option value="{{ minutos }}">{{ minutos }} minutos</option>{% endfor %}</select></label>
+            <button type="submit" class="botao-marcar">Guardar</button>
+        </form>
+        <p class="nota-pessoal">Eliminar este período volta a disponibilizar o horário. As marcações de clientes são mantidas.</p>
+        <div id="resultadoPeriodo" class="aviso-periodo" role="status" aria-live="polite"></div>
+        <div class="acoes-form-marcacao"><button type="button" class="botao-cancelar" data-fechar-periodo>Fechar</button><button type="button" id="eliminarPeriodo" class="botao-eliminar-bloqueio">Eliminar período</button></div>
+    </section>
+</div>

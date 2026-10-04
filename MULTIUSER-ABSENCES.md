@@ -5,9 +5,11 @@ Esta branch inclui as marcações em série anteriores.
 
 ## Funcionamento
 
-Na agenda semanal, abrir «Ausências e encerramentos». Escolher tipo, profissional
-(para ausências), motivo, início e fim. Para um dia completo, usar 00:00 até 00:00
-do dia seguinte. O período pode atravessar várias datas.
+Na agenda semanal, clicar num horário e escolher o separador «Ausência /
+Encerramento», junto dos separadores «Clientes» e «Pessoal». Escolher tipo,
+profissional (para ausências), motivo, data inicial e data final. «Dia inteiro»
+inclui todas as datas selecionadas. Ao desmarcá-lo, indicar as horas inicial e
+final. O período pode atravessar várias datas.
 
 - Barbeiros comuns criam/eliminam apenas ausências próprias.
 - Gestor/Admin gerem ausências de qualquer profissional e encerramentos globais.
@@ -15,8 +17,8 @@ do dia seguinte. O período pode atravessar várias datas.
 - Encerramentos ocupam todas as agendas.
 - A existência de marcações ou reservas online válidas provoca conflito: nada é
   cancelado, deslocado ou criado automaticamente.
-- As agendas mostram os períodos da semana, incluindo dias intermediários.
-- Eliminar um período volta a disponibilizar esse horário.
+- A grelha mostra os períodos como blocos, incluindo os dias intermediários.
+- Clicar num bloco abre os detalhes; eliminar volta a disponibilizar o horário.
 - Os limites dos intervalos não se sobrepõem: uma visita pode terminar exatamente
   quando a ausência começa ou começar exatamente quando termina.
 
@@ -57,4 +59,4 @@ JavaScript da agenda/indisponibilidades e `git diff --check` também verificados
 A interface foi renderizada nos testes Flask; inspeção visual num navegador e
 validação no equipamento real permanecem pendentes.
 
-Próximo: bloqueios pessoais por barbeiro.
+Bloqueios pessoais por barbeiro também disponíveis; ver `MULTIUSER-TABS.md`.

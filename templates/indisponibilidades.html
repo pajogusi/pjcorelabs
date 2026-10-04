@@ -1,40 +1,34 @@
-<details class="painel-periodos" id="painelPeriodos">
-    <summary>Ausências e encerramentos <span>{{ indisponibilidades|length }} nesta semana</span></summary>
-    <div class="conteudo-periodos">
-        <p class="ajuda-periodos">A ausência ocupa apenas a agenda do profissional. O encerramento ocupa todas as agendas.</p>
-        <form id="formIndisponibilidade" action="/indisponibilidades/nova" method="post">
-            <div class="campos-periodos">
-                <label>Tipo<select name="tipo" id="tipoIndisponibilidade">
-                    <option value="ausencia">Ausência do profissional</option>
-                    {% if utilizador.papel == 'gestor' or utilizador.e_admin %}<option value="encerramento">Encerramento da barbearia</option>{% endif %}
-                </select></label>
-                {% if utilizador.papel == 'gestor' or utilizador.e_admin %}
-                <label id="campoBarbeiroIndisponibilidade">Profissional<select name="barbeiro_id" id="barbeiroIndisponibilidade" required>
-                    <option value="">Escolher</option>
-                    {% for barbeiro in barbeiros %}<option value="{{ barbeiro.id }}" {% if barbeiro_selecionado == barbeiro.id %}selected{% endif %}>{{ barbeiro.nome }}</option>{% endfor %}
-                </select></label>
-                {% else %}<input type="hidden" name="barbeiro_id" value="{{ utilizador.id }}">{% endif %}
-                <label>Início<input type="datetime-local" name="inicio" required></label>
-                <label>Fim<input type="datetime-local" name="fim" required></label>
-                <label class="motivo-periodo">Motivo<input type="text" name="motivo" placeholder="Férias, feriado, compromisso…" required></label>
-            </div>
-            <p class="ajuda-periodos">Para um dia completo, indica 00:00 desse dia até 00:00 do dia seguinte. Podes abranger vários dias.</p>
-            <button type="submit" class="botao-marcar">Guardar período</button>
-        </form>
-        <div id="resultadoIndisponibilidade" class="resultado-periodo" role="status" aria-live="polite"></div>
-        {% if indisponibilidades %}
-        <ul class="lista-periodos">
-            {% for item in indisponibilidades %}
-            <li>
-                <div><strong>{% if item.tipo == 'encerramento' %}Barbearia encerrada{% else %}Ausência · {{ item.barbeiro_nome }}{% endif %}</strong>
-                    <span>{{ item.inicio|data_pt }} {{ item.inicio[11:16] }} — {{ item.fim|data_pt }} {{ item.fim[11:16] }}</span>
-                    <span>{{ item.motivo }}</span>
-                </div>
-                {% if item.pode_eliminar %}<button type="button" class="botao-cancelar eliminar-periodo" data-periodo-id="{{ item.id }}">Eliminar</button>{% endif %}
-            </li>
-            {% endfor %}
-        </ul>
-        {% else %}<p class="ajuda-periodos">Sem ausências ou encerramentos nesta semana.</p>{% endif %}
+{% macro profissional(id) %}
+{% if utilizador.papel == 'gestor' or utilizador.e_admin %}
+<label>Barbeiro<select name="barbeiro_id" id="{{ id }}" required><option value="">Escolher</option>{% for barbeiro in barbeiros %}<option value="{{ barbeiro.id }}" {% if barbeiro_selecionado == barbeiro.id %}selected{% endif %}>{{ barbeiro.nome }}</option>{% endfor %}</select></label>
+{% else %}<input type="hidden" name="barbeiro_id" id="{{ id }}" value="{{ utilizador.id }}">{% endif %}
+{% endmacro %}
+<form id="formPessoal" method="post" action="/bloqueios/novo" hidden>
+    <div class="form-grid-duplo">
+        <label>Descrição<input type="text" name="descricao" id="descricaoPessoal" placeholder="Ex.: Massagem" required></label>
+        <label>Duração<select name="duracao" id="duracaoPessoal">{% for minutos in range(15, 241, 15) %}<option value="{{ minutos }}" {% if minutos == 60 %}selected{% endif %}>{{ minutos }} minutos</option>{% endfor %}</select></label>
+        {{ profissional('barbeiroPessoal') }}
     </div>
-</details>
-<script src="{{ url_for('static', filename='indisponibilidades.js', v='1') }}" defer></script>
+    <p class="nota-pessoal">Este período fica bloqueado apenas na agenda do profissional e não cria cliente nem envia SMS.</p>
+    <div id="avisoPessoal" class="aviso-periodo" role="status" aria-live="polite"></div>
+    <div class="acoes-form-marcacao"><button type="button" class="botao-cancelar" data-fechar-modal>Cancelar</button><button type="submit" class="botao-marcar">Guardar</button></div>
+</form>
+<form id="formIndisponibilidade" action="/indisponibilidades/nova" method="post" hidden>
+    <div class="form-grid-duplo">
+        <label>Tipo<select name="tipo" id="tipoIndisponibilidade"><option value="ausencia">Ausência</option>{% if utilizador.papel == 'gestor' or utilizador.e_admin %}<option value="encerramento">Encerramento da barbearia</option>{% endif %}</select></label>
+        <label>Motivo<input type="text" name="motivo" id="motivoIndisponibilidade" placeholder="Ex.: Férias, feriado, obras" required></label>
+        <div id="campoBarbeiroIndisponibilidade">{{ profissional('barbeiroIndisponibilidade') }}</div>
+        <label>Data inicial<input type="date" id="dataInicioIndisponibilidade" required></label>
+        <label>Data final<input type="date" id="dataFimIndisponibilidade" required></label>
+        <label class="check-repeticao"><input type="checkbox" id="diaInteiroIndisponibilidade" checked> Dia inteiro</label>
+        <div id="horasIndisponibilidade" hidden>
+            <div class="form-grid-duplo">
+                <label>Hora inicial<input type="time" id="horaInicioIndisponibilidade" step="900" value="09:00"></label>
+                <label>Hora final<input type="time" id="horaFimIndisponibilidade" step="900" value="18:00"></label>
+            </div>
+        </div>
+    </div>
+    <p class="nota-pessoal" id="explicacaoIndisponibilidade">Ausência bloqueia apenas a agenda do profissional durante este período.</p>
+    <div id="resultadoIndisponibilidade" class="aviso-periodo" role="status" aria-live="polite"></div>
+    <div class="acoes-form-marcacao"><button type="button" class="botao-cancelar" data-fechar-modal>Cancelar</button><button type="submit" class="botao-marcar">Guardar</button></div>
+</form>
