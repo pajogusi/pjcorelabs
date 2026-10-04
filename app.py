@@ -11,6 +11,7 @@ import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from flask import Flask, abort, g, redirect, render_template, request, session, url_for
 from functools import wraps
@@ -20,6 +21,20 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("BLESSED_SECRET_KEY", "blessed-multiuser-test-only")
 
 DB = Path(os.environ.get("BLESSED_DB", str(Path(__file__).with_name("blessed.db")))).expanduser()
+FUSO_BARBEARIA = ZoneInfo(os.environ.get("BLESSED_TIMEZONE", "Europe/Lisbon"))
+
+
+def agora_barbearia():
+    return datetime.now(FUSO_BARBEARIA)
+
+
+def semana_por_defeito(agora):
+    """Sexta às 22h e fim de semana abrem a próxima semana de trabalho."""
+    hoje = agora.date()
+    segunda = hoje - timedelta(days=hoje.weekday())
+    if hoje.weekday() > 4 or (hoje.weekday() == 4 and agora.hour >= 22):
+        segunda += timedelta(days=7)
+    return segunda
 
 LOG_EMAIL_DESTINO = "pajogusi.uk@gmail.com"
 LOG_LOTE_TAMANHO = 10
@@ -1139,11 +1154,19 @@ def home():
 
 @app.route("/semana")
 def semana():
+    agora = agora_barbearia()
     data_pedida = request.args.get("data")
+    vista_automatica = not data_pedida
     try:
-        referencia = datetime.strptime(data_pedida, "%Y-%m-%d").date() if data_pedida else date.today()
+        referencia = datetime.strptime(data_pedida, "%Y-%m-%d").date() if data_pedida else semana_por_defeito(agora)
     except ValueError:
-        referencia = date.today()
+        referencia = semana_por_defeito(agora)
+        vista_automatica = True
+
+    proxima_viragem = (agora + timedelta(days=(4 - agora.weekday()) % 7)).replace(
+        hour=22, minute=0, second=0, microsecond=0)
+    if proxima_viragem <= agora:
+        proxima_viragem += timedelta(days=7)
 
     inicio_semana = referencia - timedelta(days=referencia.weekday())
     fim_semana = inicio_semana + timedelta(days=6)
@@ -1157,7 +1180,7 @@ def semana():
     ]
 
     meses_rapidos = []
-    base_mes = date.today().replace(day=1)
+    base_mes = agora.date().replace(day=1)
 
     for offset in range(6):
         ano = base_mes.year + ((base_mes.month - 1 + offset) // 12)
@@ -1348,7 +1371,7 @@ def semana():
         horas_grelha.append(hora_atual.strftime("%H:%M"))
         hora_atual += timedelta(minutes=30)
 
-    hoje = date.today()
+    hoje = agora.date()
     inicio_semana_atual = hoje - timedelta(days=hoje.weekday())
     semana_atual = inicio_semana == inicio_semana_atual
 
@@ -1370,6 +1393,8 @@ def semana():
         pode_marcar_outros=bool(utilizador["pode_marcar_outros"]),
         total_semana=len(marcacoes),
         semana_atual=semana_atual,
+        vista_automatica=vista_automatica,
+        viragem_em_ms=int((proxima_viragem.timestamp() - agora.timestamp()) * 1000) if vista_automatica else None,
     )
 
 

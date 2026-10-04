@@ -53,7 +53,7 @@
 
             {% if utilizador.papel == 'gestor' or utilizador.e_admin %}
             <form method="get" style="margin:0 0 12px">
-                <input type="hidden" name="data" value="{{ inicio_semana.isoformat() }}">
+                {% if not vista_automatica %}<input type="hidden" name="data" value="{{ inicio_semana.isoformat() }}">{% endif %}
                 <label>Agenda: <select name="barbeiro" onchange="this.form.submit()">
                     {% for barbeiro in barbeiros %}
                         {% if barbeiro.username == 'bruno' %}
@@ -91,9 +91,9 @@
 
         <main class="main-semana">
             <section class="titulo-semana {% if semana_atual %}semana-atual{% endif %}">
-                <a href="/semana?data={{ semana_anterior.isoformat() }}{% if barbeiro_selecionado %}&barbeiro={{ barbeiro_selecionado }}{% endif %}" class="seta-semana" title="Semana anterior">‹</a>
+                <a href="/semana?data={{ semana_anterior.isoformat() }}{% if barbeiro_selecionado is none %}&barbeiro=todos{% else %}&barbeiro={{ barbeiro_selecionado }}{% endif %}" class="seta-semana" title="Semana anterior">‹</a>
                 <div class="identificacao-semana"><h1>Semana</h1><span>{{ inicio_semana.strftime('%d/%m') }} — {{ fim_semana.strftime('%d/%m/%Y') }} ({{ total_semana }})</span></div>
-                <a href="/semana?data={{ semana_seguinte.isoformat() }}{% if barbeiro_selecionado %}&barbeiro={{ barbeiro_selecionado }}{% endif %}" class="seta-semana" title="Semana seguinte">›</a>
+                <a href="/semana?data={{ semana_seguinte.isoformat() }}{% if barbeiro_selecionado is none %}&barbeiro=todos{% else %}&barbeiro={{ barbeiro_selecionado }}{% endif %}" class="seta-semana" title="Semana seguinte">›</a>
             </section>
 
             {% if clientes_inativos %}
@@ -472,6 +472,22 @@ telefoneCliente.addEventListener('input',function(){clearTimeout(temporizadorTel
 document.getElementById('diaAnterior').addEventListener('click',function(){mudarDiaMarcacao(-1);});document.getElementById('diaSeguinte').addEventListener('click',function(){mudarDiaMarcacao(1);});document.getElementById('horaAnterior').addEventListener('click',function(){mudarHoraMarcacao(-15);});document.getElementById('horaSeguinte').addEventListener('click',function(){mudarHoraMarcacao(15);});document.querySelector('#formNovaMarcacao [name="duracao"]').addEventListener('change',atualizarMarcacao);document.querySelectorAll('[data-fechar-modal]').forEach(function(b){b.addEventListener('click',function(){modal.hidden=true;});});document.querySelectorAll('[data-fechar-estado]').forEach(function(b){b.addEventListener('click',function(){modalEstado.hidden=true;});});document.addEventListener('keydown',function(e){if(e.key==='Escape'){modal.hidden=true;modalEstado.hidden=true;}});
 </script>
 <script src="{{ url_for('static', filename='screensaver.js') }}"></script>
+{% if viragem_em_ms is not none %}
+<script>
+(function () {
+    const limite = Date.now() + {{ viragem_em_ms | tojson }};
+    function verificarSemana() {
+        if (Date.now() < limite || document.hidden) return;
+        const aEditar = Array.from(document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]'))
+            .some(el => el.getClientRects().length > 0);
+        if (aEditar || document.querySelector('input:focus, textarea:focus, select:focus')) return;
+        window.location.reload();
+    }
+    setInterval(verificarSemana, 1000);
+    document.addEventListener('visibilitychange', verificarSemana);
+})();
+</script>
+{% endif %}
 
 <script>
 (function () {
