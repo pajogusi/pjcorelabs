@@ -13,6 +13,7 @@ import unicodedata
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from contextlib import closing
 
 from flask import Flask, abort, g, redirect, render_template, request, session, url_for
 from functools import wraps
@@ -40,6 +41,7 @@ def semana_por_defeito(agora):
 LOG_EMAIL_DESTINO = "pajogusi.uk@gmail.com"
 LOG_LOTE_TAMANHO = 10
 LOG_LOCK = threading.Lock()
+EQUIPAMENTO_COOKIE = "blessed_multiuser_equipamento"
 
 
 
@@ -481,6 +483,35 @@ def pode_gerir_indisponibilidade(item):
 
 
 @app.before_request
+def reconhecer_equipamento():
+    if request.path.startswith("/static/") or request.path == "/favicon.ico":
+        return
+    g.equipamento = None
+    g.equipamento_novo = False
+    utilizador = utilizador_atual()
+    g.ator_log = dict(utilizador) if utilizador and utilizador["ativo"] else None
+    if not g.ator_log and request.endpoint not in {"login", "logout"}:
+        return
+    try:
+        with closing(get_db()) as con, con:
+            codigo = request.cookies.get(EQUIPAMENTO_COOKIE, "")
+            row = None
+            if len(codigo) == 32 and all(c in "0123456789abcdef" for c in codigo):
+                row = con.execute("SELECT * FROM equipamentos WHERE id = ?", (codigo,)).fetchone()
+            if row is None:
+                codigo = secrets.token_hex(16)
+                con.execute("""
+                    INSERT INTO equipamentos (id, nome, csrf_token, criado_em)
+                    VALUES (?, '', ?, ?)
+                """, (codigo, secrets.token_urlsafe(32), agora_barbearia().isoformat(timespec="seconds")))
+                row = con.execute("SELECT * FROM equipamentos WHERE id = ?", (codigo,)).fetchone()
+                g.equipamento_novo = True
+            g.equipamento = dict(row)
+    except sqlite3.Error as erro:
+        print(f"EQUIPAMENTO: falha na identificação: {erro}")
+
+
+@app.before_request
 def exigir_autenticacao():
     if request.endpoint in {
         "login",
@@ -515,6 +546,8 @@ def exigir_autenticacao():
         "cliente_por_telefone",
         "clientes_por_nome",
         "cliente_para_marcacao",
+        "equipamento",
+        "nomear_equipamento",
         "disponibilidade",
         "nova_marcacao",
         "alterar_duracao_marcacao",
@@ -531,6 +564,29 @@ def exigir_autenticacao():
         return redirect(url_for("semana"))
 
     return None
+
+
+@app.route("/equipamento")
+def equipamento():
+    return render_template("equipamento.html", equipamento=getattr(g, "equipamento", None),
+                           salvo=request.args.get("salvo") == "1")
+
+
+@app.route("/equipamento/nome", methods=["POST"])
+def nomear_equipamento():
+    equipamento = getattr(g, "equipamento", None)
+    if not equipamento:
+        return "Não foi possível identificar este navegador. Atualiza a página.", 503
+    if not secrets.compare_digest(request.form.get("csrf_token", "").encode(), equipamento["csrf_token"].encode()):
+        return "Formulário expirado. Volta à página Equipamento.", 403
+    nome_original = request.form.get("nome", "")
+    nome = " ".join(nome_original.split())
+    if not nome or len(nome) > 80 or any(ord(c) < 32 or ord(c) == 127 for c in nome_original):
+        return "Indica um nome entre 1 e 80 caracteres.", 400
+    with closing(get_db()) as con, con:
+        con.execute("UPDATE equipamentos SET nome = ? WHERE id = ?", (nome, equipamento["id"]))
+    g.equipamento["nome"] = nome
+    return redirect(url_for("equipamento", salvo="1"))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -665,14 +721,39 @@ def normalizar_data_nascimento(valor):
 
 
 
+def identificar_dispositivo(user_agent):
+    ua = (user_agent or "").lower()
+    if "ipad" in ua or "tablet" in ua:
+        return "Tablet"
+    if "iphone" in ua:
+        return "Telemóvel (iPhone)"
+    if "android" in ua:
+        return "Telemóvel (Android)" if "mobile" in ua else "Tablet (Android)"
+    if "windows" in ua:
+        return "Computador (Windows)"
+    if "linux" in ua:
+        return "Computador (Linux)"
+    if "macintosh" in ua or "mac os" in ua:
+        return "Computador (Mac)"
+    return "Dispositivo desconhecido"
+
+
 def _enviar_logs_email(rows, descricao):
     if not rows:
         return False
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["ID", "Data/Hora", "Metodo", "Caminho", "HTTP", "IP"])
+    writer.writerow(["ID", "Data/Hora", "Metodo", "Caminho", "HTTP", "IP", "Utilizador ID",
+                     "Utilizador", "Username", "Equipamento ID", "Equipamento", "Novo equipamento",
+                     "Dispositivo", "User-Agent"])
+    def celula(valor):
+        valor = "" if valor is None else str(valor)
+        return "'" + valor if valor.startswith(("=", "+", "-", "@", "\t", "\r", "\n")) else valor
     for row in rows:
-        writer.writerow([row["id"], row["criado_em"], row["metodo"], row["caminho"], row["estado_http"], row["ip"] or ""])
+        writer.writerow([celula(row[chave]) for chave in (
+            "id", "criado_em", "metodo", "caminho", "estado_http", "ip", "utilizador_id",
+            "utilizador_nome", "utilizador_username", "equipamento_id", "equipamento_nome",
+            "equipamento_novo", "dispositivo", "user_agent")])
     agora = datetime.now().astimezone()
     nome = agora.strftime("blessed-atividades-%Y%m%d-%H%M%S.csv")
     return enviar_email_brevo(
@@ -686,6 +767,11 @@ def _enviar_logs_email(rows, descricao):
 
 @app.after_request
 def registar_atividade_site(response):
+    equipamento = getattr(g, "equipamento", None)
+    if equipamento:
+        response.set_cookie(EQUIPAMENTO_COOKIE, equipamento["id"], max_age=365 * 24 * 60 * 60,
+                            httponly=True, samesite="Lax", path="/",
+                            secure=request.is_secure or request.headers.get("X-Forwarded-Proto") == "https")
     # A bateria automática nunca gera logs nem emails reais.
     if app.config.get("TESTING"):
         return response
@@ -696,30 +782,29 @@ def registar_atividade_site(response):
 
     try:
         with LOG_LOCK:
-            con = get_db()
-
-            ip = (
-                request.headers.get("CF-Connecting-IP")
-                or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-                or request.remote_addr
-                or ""
-            )
-
-            con.execute("""
-                INSERT INTO atividade_log
-                    (criado_em, metodo, caminho, estado_http, ip)
-                VALUES (?, ?, ?, ?, ?)
-            """, (
-                datetime.now().astimezone().isoformat(timespec="seconds"),
-                request.method,
-                request.path,
-                int(response.status_code),
-                ip,
-            ))
-            con.commit()
-
-            # Multi-users: os logs ficam guardados localmente. O envio por email é manual no Admin > Logs.
-            con.close()
+            with closing(get_db()) as con, con:
+                ator = getattr(g, "ator_log", None)
+                if request.endpoint == "login" and session.get("utilizador_id"):
+                    ator = con.execute("SELECT id, nome, username FROM utilizadores WHERE id = ?",
+                                       (session["utilizador_id"],)).fetchone()
+                ip = (request.headers.get("CF-Connecting-IP")
+                      or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+                      or request.remote_addr or "")
+                equipamento = equipamento or {}
+                user_agent = request.headers.get("User-Agent", "")
+                con.execute("""
+                    INSERT INTO atividade_log
+                        (criado_em, metodo, caminho, estado_http, ip,
+                         utilizador_id, utilizador_nome, utilizador_username,
+                         equipamento_id, equipamento_nome, equipamento_novo, dispositivo, user_agent)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (agora_barbearia().isoformat(timespec="seconds"), request.method, request.path,
+                      int(response.status_code), ip,
+                      ator["id"] if ator else None, ator["nome"] if ator else "",
+                      ator["username"] if ator else "", equipamento.get("id", ""),
+                      equipamento.get("nome", "") or "Por identificar",
+                      int(getattr(g, "equipamento_novo", False)), identificar_dispositivo(user_agent), user_agent))
+                # O envio por email permanece manual no Admin > Logs.
 
     except Exception as erro:
         # Uma falha do log nunca deve impedir o funcionamento do Blessed.
@@ -984,6 +1069,23 @@ def garantir_esquema():
             estado_http INTEGER NOT NULL,
             ip TEXT,
             enviado_em TEXT
+        )
+    """)
+
+    colunas_log = {row["name"] for row in con.execute("PRAGMA table_info(atividade_log)")}
+    for nome_coluna, tipo in (
+        ("equipamento_id", "TEXT"), ("equipamento_nome", "TEXT"),
+        ("equipamento_novo", "INTEGER NOT NULL DEFAULT 0"),
+        ("utilizador_id", "INTEGER"), ("utilizador_nome", "TEXT"),
+        ("utilizador_username", "TEXT"), ("dispositivo", "TEXT"), ("user_agent", "TEXT")):
+        if nome_coluna not in colunas_log:
+            con.execute(f"ALTER TABLE atividade_log ADD COLUMN {nome_coluna} {tipo}")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS equipamentos (
+            id TEXT PRIMARY KEY,
+            nome TEXT NOT NULL DEFAULT '',
+            csrf_token TEXT NOT NULL,
+            criado_em TEXT NOT NULL
         )
     """)
 
@@ -1682,7 +1784,7 @@ def admin():
         ]
 
     logs_admin = con.execute("""
-        SELECT id, criado_em, metodo, caminho, estado_http, ip, enviado_em
+        SELECT *
         FROM atividade_log
         ORDER BY id DESC
         LIMIT 200
@@ -1722,7 +1824,7 @@ def admin_logs_enviar():
             con.close()
             return "Lote inválido", 400
         rows = con.execute("""
-            SELECT id, criado_em, metodo, caminho, estado_http, ip
+            SELECT *
             FROM atividade_log WHERE enviado_em IS NULL
             ORDER BY id DESC LIMIT ?
         """, (limite,)).fetchall()
@@ -1734,7 +1836,7 @@ def admin_logs_enviar():
             con.close()
             return "Intervalo de datas inválido", 400
         rows = con.execute("""
-            SELECT id, criado_em, metodo, caminho, estado_http, ip
+            SELECT *
             FROM atividade_log
             WHERE date(criado_em) BETWEEN ? AND ?
             ORDER BY id

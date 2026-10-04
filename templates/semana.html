@@ -18,6 +18,7 @@
             <nav class="menu-principal">
                 <a href="/semana" class="menu-item ativo" title="Agenda"><span class="menu-icone icone-agenda" aria-hidden="true"></span><span>Agenda</span></a>
                 <a href="/clientes" class="menu-item" title="Clientes"><span class="menu-icone icone-clientes" aria-hidden="true"></span><span>Clientes</span></a>
+                <a href="/equipamento" class="menu-item" title="Identificar este equipamento"><span class="menu-icone" aria-hidden="true">▤</span><span>Equipamento</span></a>
                 <a href="/estatisticas" class="menu-item" title="Estatísticas"><span class="menu-icone icone-estatisticas" aria-hidden="true"></span><span>Estatísticas</span></a>
                 {% if utilizador.papel == 'gestor' or utilizador.e_admin %}
                 <a href="/servicos" class="menu-item" title="Serviços"><span class="menu-icone icone-servicos" aria-hidden="true"></span><span>Serviços</span></a>
@@ -31,6 +32,7 @@
                     <span class="menu-icone">🛡</span>
                     <span>Admin</span>
                 </a>
+                <a href="/admin#admin-logs" class="menu-item" title="Logs de atividade"><span class="menu-icone" aria-hidden="true">☷</span><span>Logs</span></a>
                 {% endif %}
                 <a href="/logout" class="menu-item" title="Terminar sessão"><span class="menu-icone">⏻</span><span>Sair</span></a>
             </nav>

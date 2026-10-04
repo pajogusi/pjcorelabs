@@ -223,7 +223,22 @@ button {
         <span style="opacity:.7">Destino: {{ logs_email_destino }}</span>
     </form>
     <div style="overflow:auto;max-height:560px;border:1px solid #303030;border-radius:8px">
-        <table style="width:100%;border-collapse:collapse;min-width:760px"><thead><tr><th style="padding:8px;text-align:left">Data/Hora</th><th style="padding:8px;text-align:left">Método</th><th style="padding:8px;text-align:left">Caminho</th><th style="padding:8px;text-align:left">HTTP</th><th style="padding:8px;text-align:left">IP</th><th style="padding:8px;text-align:left">Email</th></tr></thead><tbody>{% for log in logs_admin %}<tr style="border-top:1px solid #252525"><td style="padding:8px;white-space:nowrap">{{ log.criado_em }}</td><td style="padding:8px">{{ log.metodo }}</td><td style="padding:8px">{{ log.caminho }}</td><td style="padding:8px">{{ log.estado_http }}</td><td style="padding:8px">{{ log.ip or '—' }}</td><td style="padding:8px">{{ log.enviado_em or 'Não enviado' }}</td></tr>{% else %}<tr><td colspan="6" style="padding:14px">Ainda não existem logs.</td></tr>{% endfor %}</tbody></table>
+        <table style="width:100%;border-collapse:collapse;min-width:1100px">
+            <thead><tr>
+                {% for titulo in ['Data/Hora', 'Utilizador', 'Equipamento', 'Dispositivo', 'Método', 'Caminho', 'HTTP', 'IP', 'Email'] %}
+                <th style="padding:8px;text-align:left">{{ titulo }}</th>
+                {% endfor %}
+            </tr></thead>
+            <tbody>{% for log in logs_admin %}<tr style="border-top:1px solid #252525">
+                <td style="padding:8px;white-space:nowrap">{{ log.criado_em }}</td>
+                <td style="padding:8px">{{ log.utilizador_nome or '—' }}{% if log.utilizador_username %}<small style="display:block;opacity:.7">{{ log.utilizador_username }}</small>{% endif %}</td>
+                <td style="padding:8px" title="{{ log.equipamento_id or '' }}">{{ log.equipamento_nome or '—' }}{% if log.equipamento_novo %}<small style="display:block;opacity:.7">Novo navegador</small>{% endif %}</td>
+                <td style="padding:8px" title="{{ log.user_agent or '' }}">{{ log.dispositivo or '—' }}</td>
+                <td style="padding:8px">{{ log.metodo }}</td><td style="padding:8px">{{ log.caminho }}</td>
+                <td style="padding:8px">{{ log.estado_http }}</td><td style="padding:8px">{{ log.ip or '—' }}</td>
+                <td style="padding:8px">{{ log.enviado_em or 'Não enviado' }}</td>
+            </tr>{% else %}<tr><td colspan="9" style="padding:14px">Ainda não existem logs.</td></tr>{% endfor %}</tbody>
+        </table>
     </div>
 </section>
 <script>document.addEventListener('DOMContentLoaded',()=>{const m=document.getElementById('logs-modo'),l=document.getElementById('logs-lote'),d=[...document.querySelectorAll('.logs-datas')];if(!m)return;const u=()=>{const datas=m.value==='datas';l.hidden=datas;d.forEach(x=>x.hidden=!datas)};m.addEventListener('change',u);u()});</script>
@@ -1253,3 +1268,4 @@ Obrigado pela compreensão.`
 
 </body>
 </html>
+

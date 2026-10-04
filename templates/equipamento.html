@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Equipamento — Blessed Multiuser</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='definicoes.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='equipamento.css') }}">
+</head>
+<body>
+<div class="app">
+<main class="definicoes-main equipamento-main">
+    <section class="definicoes-topo">
+        <div><h1>Equipamento</h1><p>Identifica este navegador nos registos de atividade.</p></div>
+        <a href="{{ url_for('semana') }}" class="botao-voltar-def">Voltar à agenda</a>
+    </section>
+    <article class="def-card">
+        {% if equipamento %}
+        <form method="post" action="{{ url_for('nomear_equipamento') }}" class="equipamento-form">
+            <input type="hidden" name="csrf_token" value="{{ equipamento.csrf_token }}">
+            <label for="nomeEquipamento">Nome deste equipamento</label>
+            <input id="nomeEquipamento" name="nome" type="text" maxlength="80" required
+                   value="{{ equipamento.nome }}" placeholder="Ex.: Tablet da loja, iPhone Bruno, Centro">
+            <button type="submit" class="botao-voltar-def">Guardar nome</button>
+        </form>
+        {% if salvo %}<p class="def-guardado" role="status">Nome guardado.</p>{% endif %}
+        {% else %}
+        <p role="alert">Não foi possível identificar este navegador. Atualiza a página e tenta novamente.</p>
+        {% endif %}
+        <p class="def-nota">Escolhe um nome que permita reconhecer a origem das ações. Outro navegador ou a limpeza dos cookies cria uma nova identificação.</p>
+    </article>
+</main>
+</div>
+</body>
+</html>
