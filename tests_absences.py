@@ -3,6 +3,7 @@
 import sqlite3
 import threading
 import unittest
+from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 import tests_series
@@ -83,7 +84,7 @@ class AbsenceTests(unittest.TestCase):
 
     def test_expired_reservation_does_not_prevent_absence(self):
         self.reserve()
-        with self.mod.get_db() as con:
+        with closing(self.mod.get_db()) as con, con:
             con.execute('UPDATE reservas_online SET expira_em=?', ((datetime.now().astimezone()-timedelta(minutes=1)).isoformat(timespec='seconds'),))
         self.assertEqual(self.period().status_code, 201)
 
@@ -120,7 +121,7 @@ class AbsenceTests(unittest.TestCase):
                         dict(fim=(self.start-timedelta(minutes=1)).isoformat(timespec='minutes')),
                         dict(inicio='2030-01-01T10:00+00:00'), dict(inicio='2030-01-01T10:00:30')]:
             self.assertEqual(self.period(**changes).status_code, 400)
-        with self.mod.get_db() as con:
+        with closing(self.mod.get_db()) as con, con:
             con.execute('UPDATE utilizadores SET ativo=0 WHERE id=3')
         for barber in ['3', '4', '999']:
             self.assertEqual(self.period(client=self.client_for(1), barbeiro_id=barber).status_code, 400)

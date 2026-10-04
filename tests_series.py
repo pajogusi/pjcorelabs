@@ -7,6 +7,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -20,7 +21,7 @@ class SeriesTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(prefix='multiuser-series-')
         self.addCleanup(self.tmp.cleanup)
         self.db = Path(self.tmp.name) / 'series.db'
-        with sqlite3.connect(self.db) as con:
+        with closing(sqlite3.connect(self.db)) as con, con:
             con.executescript('''
                 CREATE TABLE clientes (id INTEGER PRIMARY KEY, nome TEXT NOT NULL, email TEXT,
                     data_nascimento TEXT, alerta_inatividade_visto_em TEXT, atualizado_em TEXT);
@@ -37,7 +38,7 @@ class SeriesTests(unittest.TestCase):
         self.mod.app.config.update(TESTING=True, SECRET_KEY='series-test')
         self.sms = []
         self.mod.enviar_sms_smsgate = lambda phone, text: self.sms.append((phone, text)) or True
-        with self.mod.get_db() as con:
+        with closing(self.mod.get_db()) as con, con:
             for uid, role, admin in [(1, 'gestor', 0), (2, 'barbeiro', 0), (3, 'barbeiro', 0), (4, 'barbeiro', 1)]:
                 con.execute('''INSERT INTO utilizadores
                     (id,nome,username,password_hash,papel,e_admin,sms_autorizado,sms_provider)
@@ -160,14 +161,14 @@ class SeriesTests(unittest.TestCase):
 
     def test_sms_permission_checked_again_at_delivery(self):
         self.create()
-        with self.mod.get_db() as con:
+        with closing(self.mod.get_db()) as con, con:
             con.execute('UPDATE utilizadores SET sms_autorizado=0 WHERE id=2')
         self.worker()
         self.assertEqual(self.sms, [])
         self.assertEqual(self.rows("SELECT estado FROM sms_fila WHERE tipo='confirmacao_serie'")[0]['estado'], 'pendente')
 
     def test_sms_disabled_creates_no_queue(self):
-        with self.mod.get_db() as con:
+        with closing(self.mod.get_db()) as con, con:
             con.execute('UPDATE utilizadores SET sms_autorizado=0 WHERE id=2')
         self.assertEqual(self.create().status_code, 302)
         self.assertEqual(self.rows('SELECT * FROM sms_fila'), [])
@@ -202,7 +203,7 @@ class SeriesTests(unittest.TestCase):
         self.assertEqual(self.create(inicio=self.start.replace(hour=0, minute=15).isoformat(timespec='minutes')).status_code, 409)
 
     def test_pending_online_reservation_blocks_whole_series(self):
-        with self.mod.get_db() as con:
+        with closing(self.mod.get_db()) as con, con:
             con.execute('''INSERT INTO reservas_online
                 (token_publico,barbeiro_id,inicio,duracao_minutos,servico,nome_cliente,telefone_cliente,expira_em)
                 VALUES ('test-reservation',2,?,30,'Corte','Reservado','+351910888777',?)''',
@@ -213,7 +214,7 @@ class SeriesTests(unittest.TestCase):
         self.assertEqual(self.rows('SELECT * FROM clientes'), [])
 
     def test_cancel_series_cancels_per_occurrence_emails(self):
-        with self.mod.get_db() as con:
+        with closing(self.mod.get_db()) as con, con:
             con.execute('UPDATE utilizadores SET email_ativo=1,email_confirmacao=1,email_lembrete_24h=1,email_lembrete_1h=1 WHERE id=2')
             for key in ['email_confirmacao','email_lembrete_24h','email_lembrete_1h']:
                 con.execute('''INSERT INTO modelos_comunicacao
