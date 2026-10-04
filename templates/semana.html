@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='sidebar.css', v='20261001-scroll') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='marcacao.css', v='20260920-altura2') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='screensaver.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='indisponibilidades.css', v='1') }}">
 </head>
 <body class="pagina-semana">
 <div class="app app-semana">
@@ -106,10 +107,18 @@
             </a>
             {% endif %}
 
+            {% include 'indisponibilidades.html' %}
+
             <section class="agenda-semanal {% if barbeiro_selecionado is none %}agenda-todos{% endif %}">
                 <div class="agenda-cabecalho">
                     <div class="cabecalho-hora"><strong class="barbeiro-logado">{{ utilizador.nome }}</strong></div>
-                    {% for dia in dias %}<div class="agenda-dia"><strong>{{ dia.nome }} ({{ dia.total }})</strong><span>{{ dia.data[8:10] }}/{{ dia.data[5:7] }}</span></div>{% endfor %}
+                    {% for dia in dias %}<div class="agenda-dia"><strong>{{ dia.nome }} ({{ dia.total }})</strong><span>{{ dia.data[8:10] }}/{{ dia.data[5:7] }}</span>
+                        {% for item in dia.indisponibilidades %}
+                        <span class="periodo-dia {{ item.tipo }}" title="{{ item.motivo }} · {{ item.inicio|data_pt }} — {{ item.fim|data_pt }}">
+                            {% if item.tipo == 'encerramento' %}Encerrada{% else %}Ausência{% if barbeiro_selecionado is none %} · {{ item.barbeiro_nome }}{% endif %}{% endif %}
+                        </span>
+                        {% endfor %}
+                    </div>{% endfor %}
                 </div>
                 <div class="agenda-corpo">
                     {% for hora in horas_grelha %}
@@ -468,4 +477,3 @@ document.getElementById('diaAnterior').addEventListener('click',function(){mudar
 </script>
 \n</body>
 </html>
-

@@ -417,23 +417,42 @@ def expirar_reservas_online(con, agora=None):
 
 def barbeiro_livre_para_reserva(con, barbeiro_id, inicio, duracao_minutos):
     """Disponibilidade de um profissional, incluindo reservas a aguardar pagamento."""
-    expirar_reservas_online(con)
     fim = inicio + timedelta(minutes=duracao_minutos)
+    if conflitos_indisponibilidade(con, barbeiro_id, inicio, fim):
+        return False
     marcacoes = con.execute("""
         SELECT inicio, duracao_minutos FROM marcacoes
         WHERE barbeiro_id = ? AND estado != 'cancelada'
           AND substr(inicio, 1, 10) = ?
         UNION ALL
         SELECT inicio, duracao_minutos FROM reservas_online
-        WHERE barbeiro_id = ? AND estado = 'aguarda_pagamento'
+        WHERE barbeiro_id = ? AND estado = 'aguarda_pagamento' AND expira_em > ?
           AND substr(inicio, 1, 10) = ?
-    """, (barbeiro_id, inicio.date().isoformat(), barbeiro_id, inicio.date().isoformat())).fetchall()
+    """, (barbeiro_id, inicio.date().isoformat(), barbeiro_id, datetime.now().astimezone().isoformat(timespec="seconds"), inicio.date().isoformat())).fetchall()
     for item in marcacoes:
         existente_inicio = datetime.fromisoformat(item["inicio"])
         existente_fim = existente_inicio + timedelta(minutes=item["duracao_minutos"])
         if inicio < existente_fim and fim > existente_inicio:
             return False
     return True
+
+
+def conflitos_indisponibilidade(con, barbeiro_id, inicio, fim):
+    """Encerramentos globais e ausências só do profissional deste horário."""
+    return con.execute("""
+        SELECT id, tipo, inicio, fim, motivo, barbeiro_id
+        FROM indisponibilidades
+        WHERE inicio < ? AND fim > ?
+          AND (tipo = 'encerramento' OR barbeiro_id = ?)
+        ORDER BY inicio
+    """, (fim.isoformat(timespec="minutes"), inicio.isoformat(timespec="minutes"), barbeiro_id)).fetchall()
+
+
+def pode_gerir_indisponibilidade(item):
+    utilizador = utilizador_atual()
+    return bool(utilizador and (gestor() or (
+        item["tipo"] == "ausencia" and item["barbeiro_id"] == utilizador["id"]
+    )))
 
 
 @app.before_request
@@ -474,6 +493,8 @@ def exigir_autenticacao():
         "alterar_duracao_marcacao",
         "alterar_estado_marcacao",
         "cancelar_serie_futura",
+        "nova_indisponibilidade",
+        "eliminar_indisponibilidade",
     }
 
     if request.endpoint not in permitidos_barbeiro:
@@ -512,7 +533,7 @@ def online_reservar():
     con = get_db()
     expirar_reservas_online(con)
     barbeiros = con.execute(
-        "SELECT id, nome FROM utilizadores WHERE ativo = 1 ORDER BY nome COLLATE NOCASE"
+        "SELECT id, nome FROM utilizadores WHERE ativo = 1 AND COALESCE(e_admin,0) = 0 ORDER BY nome COLLATE NOCASE"
     ).fetchall()
     con.close()
     return render_template(
@@ -532,6 +553,8 @@ def online_reservar_submeter():
     escolha = request.form.get("barbeiro", "").strip()
     try:
         inicio = datetime.fromisoformat(request.form.get("inicio", "").strip())
+        if inicio.tzinfo is not None:
+            raise ValueError
         duracao = int(request.form.get("duracao", "30"))
     except (TypeError, ValueError):
         return render_template("reservar_online.html", erro="Escolhe uma data e hora válidas."), 400
@@ -540,7 +563,8 @@ def online_reservar_submeter():
 
     con = get_db()
     expirar_reservas_online(con)
-    barbeiros = con.execute("SELECT id, nome FROM utilizadores WHERE ativo = 1 ORDER BY nome COLLATE NOCASE").fetchall()
+    con.execute("BEGIN IMMEDIATE")
+    barbeiros = con.execute("SELECT id, nome FROM utilizadores WHERE ativo = 1 AND COALESCE(e_admin,0) = 0 ORDER BY nome COLLATE NOCASE").fetchall()
     if escolha == "primeiro":
         barbeiro = next((b for b in barbeiros if barbeiro_livre_para_reserva(con, b["id"], inicio, duracao)), None)
     else:
@@ -734,6 +758,24 @@ def garantir_esquema():
     if "email_lembrete_1h" not in colunas_utilizadores:
         con.execute("ALTER TABLE utilizadores ADD COLUMN email_lembrete_1h INTEGER NOT NULL DEFAULT 0")
     con.execute("CREATE INDEX IF NOT EXISTS idx_marcacoes_barbeiro_inicio ON marcacoes (barbeiro_id, inicio)")
+
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS indisponibilidades (
+            id INTEGER PRIMARY KEY,
+            tipo TEXT NOT NULL CHECK (tipo IN ('ausencia', 'encerramento')),
+            inicio TEXT NOT NULL,
+            fim TEXT NOT NULL CHECK (fim > inicio),
+            motivo TEXT NOT NULL,
+            barbeiro_id INTEGER,
+            criado_por_id INTEGER NOT NULL,
+            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CHECK ((tipo = 'ausencia' AND barbeiro_id IS NOT NULL)
+                OR (tipo = 'encerramento' AND barbeiro_id IS NULL)),
+            FOREIGN KEY (barbeiro_id) REFERENCES utilizadores(id),
+            FOREIGN KEY (criado_por_id) REFERENCES utilizadores(id)
+        )
+    """)
+    con.execute("CREATE INDEX IF NOT EXISTS idx_indisponibilidades_intervalo ON indisponibilidades (barbeiro_id, inicio, fim)")
 
     # Reservas online ficam separadas das marcações confirmadas: só passam à
     # agenda depois da confirmação de pagamento pelo fornecedor escolhido.
@@ -1154,6 +1196,18 @@ def semana():
         (inicio_semana.isoformat(), fim_semana.isoformat(), *([barbeiro_id] if barbeiro_id else [])),
     ).fetchall()
     clientes_inativos = obter_clientes_inativos(con, apenas_pendentes=True)
+    indisponibilidades = con.execute("""
+        SELECT i.*, u.nome AS barbeiro_nome FROM indisponibilidades i
+        LEFT JOIN utilizadores u ON u.id = i.barbeiro_id
+        WHERE i.inicio < ? AND i.fim > ?
+          AND (i.tipo = 'encerramento' OR i.barbeiro_id = ? OR ? = 1)
+        ORDER BY i.inicio
+    """, ((fim_semana + timedelta(days=1)).isoformat() + "T00:00", inicio_semana.isoformat() + "T00:00",
+          barbeiro_id, int(gestor() and barbeiro_id is None))).fetchall()
+    indisponibilidades = [dict(item, pode_eliminar=pode_gerir_indisponibilidade(item)) for item in indisponibilidades]
+    for item in indisponibilidades:
+        if item["tipo"] == "ausencia" and not gestor() and item["barbeiro_id"] != utilizador["id"]:
+            item["motivo"] = "Indisponível"
     con.close()
 
     dias = []
@@ -1227,6 +1281,9 @@ def semana():
             "data": data_dia.isoformat(),
             "nome": nomes_dias[numero],
             "marcacoes": marcacoes_dia,
+            "indisponibilidades": [item for item in indisponibilidades
+                if datetime.fromisoformat(item["inicio"]) < datetime.combine(data_dia + timedelta(days=1), datetime.min.time())
+                and datetime.fromisoformat(item["fim"]) > datetime.combine(data_dia, datetime.min.time())],
             "total": len(marcacoes_dia),
         })
 
@@ -1254,6 +1311,7 @@ def semana():
         utilizador=utilizador,
         barbeiros=barbeiros,
         barbeiro_selecionado=barbeiro_id,
+        indisponibilidades=indisponibilidades,
         pode_consultar_outros=bool(utilizador["pode_consultar_agendas"]),
         pode_marcar_outros=bool(utilizador["pode_marcar_outros"]),
         total_semana=len(marcacoes),
@@ -2992,6 +3050,8 @@ def disponibilidade():
         if duracao not in (15, 30, 45, 60, 90):
             raise ValueError
         inicio = datetime.fromisoformat(f"{data_pedida}T{hora_pedida}")
+        if inicio.tzinfo is not None:
+            raise ValueError
     except (ValueError, TypeError):
         return {"ok": False, "erro": "Data, hora ou duração inválida"}, 400
 
@@ -3012,6 +3072,7 @@ def disponibilidade():
         WHERE substr(m.inicio, 1, 10) = ? AND m.estado != 'cancelada' AND m.barbeiro_id = ?
         ORDER BY m.inicio
     """, (inicio.date().isoformat(), barbeiro_id)).fetchall()
+    periodos = conflitos_indisponibilidade(con, barbeiro_id, inicio, fim)
     con.close()
 
     conflitos = []
@@ -3020,6 +3081,13 @@ def disponibilidade():
         existente_fim = existente_inicio + timedelta(minutes=m["duracao_minutos"])
         if inicio < existente_fim and fim > existente_inicio:
             conflitos.append({"id": m["id"], "nome": m["nome"] if barbeiro_permitido(barbeiro_id) else "Ocupado", "servico": m["servico"] if barbeiro_permitido(barbeiro_id) else "", "inicio": existente_inicio.strftime("%H:%M"), "fim": existente_fim.strftime("%H:%M")})
+
+    for item in periodos:
+        detalhes_permitidos = gestor() or barbeiro_id == utilizador["id"]
+        conflitos.append({"id": item["id"], "tipo": item["tipo"],
+            "nome": (("Barbearia encerrada: " if item["tipo"] == "encerramento" else "Ausência: ") + item["motivo"]) if detalhes_permitidos else "Indisponível",
+            "servico": "", "inicio": datetime.fromisoformat(item["inicio"]).strftime("%H:%M"),
+            "fim": datetime.fromisoformat(item["fim"]).strftime("%H:%M")})
 
     return {"ok": True, "disponivel": len(conflitos) == 0, "data": inicio.date().isoformat(), "inicio": inicio.strftime("%H:%M"), "fim": fim.strftime("%H:%M"), "duracao": duracao, "conflitos": conflitos}
 
@@ -3087,6 +3155,8 @@ def nova_marcacao():
             return "Barbeiro inválido", 400
         for inicio_item in inicios:
             fim_item = inicio_item + timedelta(minutes=duracao)
+            if conflitos_indisponibilidade(con, barbeiro_id, inicio_item, fim_item):
+                return f"Profissional indisponível em {inicio_item.strftime('%d/%m/%Y %H:%M')}. A série não foi criada.", 409
             conflitos = con.execute("""
                 SELECT inicio, duracao_minutos FROM marcacoes
                 WHERE estado != 'cancelada' AND barbeiro_id = ?
@@ -3379,6 +3449,95 @@ def nova_marcacao():
         "semana", data=novo_inicio.date().isoformat(), barbeiro=barbeiro_id
     ))
 
+@app.route("/indisponibilidades/nova", methods=["POST"])
+def nova_indisponibilidade():
+    tipo = request.form.get("tipo", "").strip()
+    motivo = request.form.get("motivo", "").strip()
+    utilizador = utilizador_atual()
+    barbeiro_id = request.form.get("barbeiro_id", type=int)
+    if tipo not in {"ausencia", "encerramento"} or not motivo:
+        return {"ok": False, "erro": "Indica o tipo e o motivo.", "nada_alterado": True}, 400
+    if tipo == "encerramento":
+        if not gestor():
+            return {"ok": False, "erro": "Só o gestor ou Admin pode encerrar a barbearia.", "nada_alterado": True}, 403
+        barbeiro_id = None
+    else:
+        barbeiro_id = barbeiro_id or utilizador["id"]
+        if not gestor() and barbeiro_id != utilizador["id"]:
+            return {"ok": False, "erro": "Só podes gerir as tuas ausências.", "nada_alterado": True}, 403
+    try:
+        inicio = datetime.fromisoformat(request.form.get("inicio", ""))
+        fim = datetime.fromisoformat(request.form.get("fim", ""))
+        if any(item.tzinfo is not None or item.second or item.microsecond for item in (inicio, fim)) or fim <= inicio:
+            raise ValueError
+    except (ValueError, TypeError):
+        return {"ok": False, "erro": "Indica um período válido, com fim posterior ao início.", "nada_alterado": True}, 400
+
+    con = get_db()
+    try:
+        con.execute("BEGIN IMMEDIATE")
+        if barbeiro_id is not None and not con.execute("SELECT id FROM utilizadores WHERE id = ? AND ativo = 1 AND COALESCE(e_admin,0) = 0", (barbeiro_id,)).fetchone():
+            return {"ok": False, "erro": "Escolhe um profissional ativo.", "nada_alterado": True}, 400
+        # No bookings or reservations are cancelled/moved as a side effect.
+        candidatos = con.execute("""
+            SELECT m.id, m.inicio, m.duracao_minutos, c.nome, m.barbeiro_id, 'marcacao' AS origem
+            FROM marcacoes m JOIN clientes c ON c.id = m.cliente_id
+            WHERE m.estado != 'cancelada' AND (? IS NULL OR m.barbeiro_id = ?)
+            UNION ALL
+            SELECT r.id, r.inicio, r.duracao_minutos, 'Reserva online', r.barbeiro_id, 'reserva'
+            FROM reservas_online r WHERE r.estado = 'aguarda_pagamento' AND r.expira_em > ?
+              AND (? IS NULL OR r.barbeiro_id = ?)
+        """, (barbeiro_id, barbeiro_id, datetime.now().astimezone().isoformat(timespec="seconds"), barbeiro_id, barbeiro_id)).fetchall()
+        conflitos = []
+        for item in candidatos:
+            item_inicio = datetime.fromisoformat(item["inicio"])
+            item_fim = item_inicio + timedelta(minutes=item["duracao_minutos"])
+            if inicio < item_fim and fim > item_inicio:
+                conflitos.append({"id": item["id"], "tipo": item["origem"], "nome": item["nome"],
+                    "data": item_inicio.strftime("%d/%m/%Y"), "inicio": item_inicio.strftime("%H:%M"),
+                    "fim": item_fim.strftime("%H:%M"), "barbeiro_id": item["barbeiro_id"]})
+        if conflitos:
+            return {"ok": False, "erro": "Existem marcações ou reservas neste período. Resolve-as antes de criar o período.",
+                    "conflitos": conflitos, "nada_alterado": True}, 409
+        existente = con.execute("""
+            SELECT id FROM indisponibilidades WHERE inicio < ? AND fim > ?
+              AND (? IS NULL OR tipo = 'encerramento' OR barbeiro_id = ?)
+        """, (fim.isoformat(timespec="minutes"), inicio.isoformat(timespec="minutes"), barbeiro_id, barbeiro_id)).fetchone()
+        if existente:
+            return {"ok": False, "erro": "Já existe uma ausência ou encerramento que abrange este período.", "nada_alterado": True}, 409
+        cur = con.execute("""
+            INSERT INTO indisponibilidades (tipo, inicio, fim, motivo, barbeiro_id, criado_por_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (tipo, inicio.isoformat(timespec="minutes"), fim.isoformat(timespec="minutes"), motivo, barbeiro_id, utilizador["id"]))
+        con.commit()
+        return {"ok": True, "id": cur.lastrowid, "tipo": tipo, "data": inicio.date().isoformat(), "barbeiro_id": barbeiro_id}, 201
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
+
+
+@app.route("/indisponibilidades/<int:indisponibilidade_id>/eliminar", methods=["POST"])
+def eliminar_indisponibilidade(indisponibilidade_id):
+    con = get_db()
+    try:
+        con.execute("BEGIN IMMEDIATE")
+        item = con.execute("SELECT * FROM indisponibilidades WHERE id = ?", (indisponibilidade_id,)).fetchone()
+        if not item:
+            return {"ok": False, "erro": "Período não encontrado."}, 404
+        if not pode_gerir_indisponibilidade(item):
+            return {"ok": False, "erro": "Sem permissão para eliminar este período."}, 403
+        con.execute("DELETE FROM indisponibilidades WHERE id = ?", (indisponibilidade_id,))
+        con.commit()
+        return {"ok": True, "id": indisponibilidade_id}
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
+
+
 @app.route("/marcacoes/<int:marcacao_id>/cancelar-serie-futura", methods=["POST"])
 def cancelar_serie_futura(marcacao_id):
     con = get_db()
@@ -3436,6 +3595,7 @@ def alterar_duracao_marcacao(marcacao_id):
 
     con = get_db()
     concretizar_marcacoes_vencidas(con)
+    con.execute("BEGIN IMMEDIATE")
 
     marcacao = con.execute("""
         SELECT m.id, m.inicio, m.duracao_minutos, m.estado, m.barbeiro_id, m.criado_por_id
@@ -3452,6 +3612,9 @@ def alterar_duracao_marcacao(marcacao_id):
 
     novo_inicio = datetime.fromisoformat(marcacao["inicio"])
     novo_fim = novo_inicio + timedelta(minutes=duracao)
+    if conflitos_indisponibilidade(con, marcacao["barbeiro_id"], novo_inicio, novo_fim):
+        con.close()
+        return {"ok": False, "erro": "A duração invade uma ausência ou encerramento."}, 409
 
     conflitos_db = con.execute("""
         SELECT m.id, m.inicio, m.duracao_minutos, c.nome
@@ -3523,13 +3686,20 @@ def alterar_estado_marcacao(marcacao_id):
 
     con = get_db()
     concretizar_marcacoes_vencidas(con)
-    marcacao = con.execute("SELECT id, cliente_id, inicio, barbeiro_id, criado_por_id FROM marcacoes WHERE id = ?", (marcacao_id,)).fetchone()
+    con.execute("BEGIN IMMEDIATE")
+    marcacao = con.execute("SELECT id, cliente_id, inicio, duracao_minutos, barbeiro_id, criado_por_id FROM marcacoes WHERE id = ?", (marcacao_id,)).fetchone()
     if not marcacao:
         con.close()
         return "Marcação não encontrada", 404
     if not pode_alterar_marcacao(marcacao):
         con.close()
         return "Sem permissão para esta marcação", 403
+
+    if estado == "marcada":
+        inicio_m = datetime.fromisoformat(marcacao["inicio"])
+        if conflitos_indisponibilidade(con, marcacao["barbeiro_id"], inicio_m, inicio_m + timedelta(minutes=marcacao["duracao_minutos"])):
+            con.close()
+            return "Profissional indisponível neste horário", 409
 
     con.execute(
         "UPDATE marcacoes SET estado = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
