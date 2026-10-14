@@ -2,7 +2,7 @@ const translations = {
   pt: {
     subscriptionOptions: "Opções de subscrição", subscriptionMonthly: "Mensal", subscriptionSixMonths: "6 meses", subscriptionYearly: "Anual",
     weekTitle: "Vista semanal", weekPrev: "Semana anterior", weekToday: "Esta semana", weekNext: "Semana seguinte", weekEmpty: "Sem marcações", weekAdd: "+ Marcação",
-    productBrand: "PJCore Agenda",
+    productBrand: "PJCHAIR",
     navSoftware: "Software",
     swEyebrow: "Software por subscrição",
     swTitle: "Software para o teu negócio.",
@@ -14,6 +14,7 @@ const translations = {
     swNailsText: "Agenda para profissionais de unhas, manicura e pedicura, com gestão de clientes e lembretes por SMS.",
     swSeeDemo: "Ver demonstração e preço",
     swBarberHero: "Uma agenda prática para barbearias.",
+    barberBasicNoSms: "Basic sem SMS", barberBasicSms: "Basic com SMS", barberMultiuser: "Multiuser", barberAdditional: "por barbeiro adicional", barberMultiDescription: "Cada barbeiro tem o seu acesso e agenda; o responsável gere a equipa.", barberConditions: "Subscrição mensal. 15 dias de teste gratuito. Necessita de Internet. SMS sujeitos aos limites do plano.",
     swNailsHero: "Uma agenda prática para profissionais de manicura e pedicura.",
     swTagline: "Uma agenda simples para te concentrares nos clientes e não nas marcações.",
     swBack: "Ver todo o software",
@@ -196,7 +197,7 @@ const translations = {
     cfInfoButton: "Pedir informação",
     cfOverviewEyebrow: "Visão geral",
     cfOverviewTitle: "Simples de ver. Simples de usar.",
-    cfOverviewText: "O ChairFlow dá à barbearia uma visão clara da semana e uma forma prática de organizar as marcações e o trabalho diário sem complexidade desnecessária.",
+    cfOverviewText: "O PJCHAIR dá à barbearia uma visão clara da semana e uma forma prática de organizar as marcações e o trabalho diário sem complexidade desnecessária.",
     cfFeatureScheduleTitle: "Agenda semanal",
     cfFeatureScheduleText: "Uma vista visual e clara da semana para marcações e disponibilidade.",
     cfFeatureTeamTitle: "Preparado para equipas",
@@ -211,7 +212,7 @@ const translations = {
     cfWeekLabel: "Semana",
     cfDemoNote: "Pré-visualização de demonstração. Os nomes e marcações apresentados são fictícios.",
     cfCtaEyebrow: "Interessado?",
-    cfCtaTitle: "Veja se o ChairFlow se adapta à sua barbearia.",
+    cfCtaTitle: "Veja se o PJCHAIR se adapta à sua barbearia.",
     cfCtaText: "Diga-nos como gere atualmente as marcações e o que precisa do sistema.",
 
     rsEyebrow: "Projeto",
@@ -297,7 +298,7 @@ const translations = {
   en: {
     subscriptionOptions: "Subscription options", subscriptionMonthly: "Monthly", subscriptionSixMonths: "6 months", subscriptionYearly: "Annual",
     weekTitle: "Weekly view", weekPrev: "Previous week", weekToday: "This week", weekNext: "Next week", weekEmpty: "No bookings", weekAdd: "+ Booking",
-    productBrand: "ChairFlow",
+    productBrand: "PJCHAIR",
     navSoftware: "Software",
     swEyebrow: "Subscription software",
     swTitle: "Software for your business.",
@@ -309,6 +310,7 @@ const translations = {
     swNailsText: "An appointment system for nail technicians, manicures and pedicures, with customer management and SMS reminders.",
     swSeeDemo: "View demo and pricing",
     swBarberHero: "A practical booking system for barbershops.",
+    barberBasicNoSms: "Basic without SMS", barberBasicSms: "Basic with SMS", barberMultiuser: "Multiuser", barberAdditional: "per additional barber", barberMultiDescription: "Each barber has their own account and calendar; the manager oversees the team.", barberConditions: "Monthly subscription. 15-day free trial. Internet required. SMS subject to plan limits.",
     swNailsHero: "A practical booking system for nail technicians.",
     swTagline: "A simple agenda so you can focus on your clients, not bookings.",
     swBack: "View all software",
@@ -491,7 +493,7 @@ const translations = {
     cfInfoButton: "Ask for information",
     cfOverviewEyebrow: "Overview",
     cfOverviewTitle: "Simple to see. Simple to use.",
-    cfOverviewText: "ChairFlow gives barbershops a clear weekly view of appointments and a practical way to organise daily work without unnecessary complexity.",
+    cfOverviewText: "PJCHAIR gives barbershops a clear weekly view of appointments and a practical way to organise daily work without unnecessary complexity.",
     cfFeatureScheduleTitle: "Weekly schedule",
     cfFeatureScheduleText: "A clear visual week view for appointments and availability.",
     cfFeatureTeamTitle: "Team ready",
@@ -506,7 +508,7 @@ const translations = {
     cfWeekLabel: "Week",
     cfDemoNote: "Demonstration preview. Names and appointments are fictional.",
     cfCtaEyebrow: "Interested?",
-    cfCtaTitle: "See whether ChairFlow fits your barbershop.",
+    cfCtaTitle: "See whether PJCHAIR fits your barbershop.",
     cfCtaText: "Tell us how you currently manage bookings and what you need from the system.",
 
     rsEyebrow: "Project",
@@ -610,6 +612,8 @@ function setLanguage(lang) {
   document.documentElement.lang = lang;
   const prices = lang === "pt" ? {month:"€10",six:"€55",year:"€105"} : {month:"£12",six:"£66",year:"£126"};
   document.querySelectorAll("[data-sub-price]").forEach(e => { e.textContent = prices[e.dataset.subPrice]; });
+  const barberPrices = lang === "pt" ? {basic:"10 €",sms:"14,99 €",multi:"14,99 €",extra:"10 €"} : {basic:"£10",sms:"£14.99",multi:"£14.99",extra:"£10"};
+  document.querySelectorAll("[data-barber-price]").forEach(e => { e.textContent = barberPrices[e.dataset.barberPrice]; });
   document.querySelectorAll('[data-price-pt]').forEach(e => e.hidden = lang !== 'pt');
   document.querySelectorAll('[data-price-en]').forEach(e => e.hidden = lang !== 'en');
 
