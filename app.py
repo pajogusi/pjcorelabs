@@ -15,7 +15,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 from contextlib import closing
 
-from flask import Flask, abort, g, redirect, render_template, request, session, url_for
+from flask import Flask, abort, g, jsonify, redirect, render_template, request, session, url_for
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 
