@@ -220,7 +220,7 @@
                         <div class="celula-agenda" data-data="{{ dia.data }}" data-hora="{{ hora }}" role="button" tabindex="0" title="{{ hora }}">
                             {% for m in dia.marcacoes %}{% if m.hora_base == hora %}
                             <div class="marcacao-grelha marcacao-posicionada estado-{{ m.estado }} barbeiro-id-{{ m.barbeiro_id }} barbeiro-{{ m.barbeiro_username }}"
-                                 style="--deslocamento: {{ m.deslocamento }}; --duracao: {{ m.duracao }};"
+                                 style="--deslocamento: {{ m.deslocamento }}; --duracao: {{ m.duracao }}; --faixa-barbeiro: {{ m.faixa_barbeiro }}; --total-faixas: {{ m.total_faixas }};"
                                  data-marcacao-id="{{ m.id }}" data-nome="{{ m.nome }}"
                                  data-hora-real="{{ m.hora }}" data-data-real="{{ m.inicio[:10] }}"
                                  data-estado="{{ m.estado }}" data-duracao="{{ m.duracao }}" data-serie-id="{{ m.serie_id or '' }}"
@@ -835,7 +835,7 @@ document.getElementById('formDuracaoMarcacao').addEventListener('submit',async f
 });
 
 telefoneCliente.addEventListener('input',function(){invalidarPesquisaCliente(false);temporizadorTelefone=setTimeout(procurarClientePorTelefone,350);});
-document.getElementById('diaAnterior').addEventListener('click',function(){mudarDiaMarcacao(-1);});document.getElementById('diaSeguinte').addEventListener('click',function(){mudarDiaMarcacao(1);});document.getElementById('horaAnterior').addEventListener('click',function(){mudarHoraMarcacao(-15);});document.getElementById('horaSeguinte').addEventListener('click',function(){mudarHoraMarcacao(15);});document.querySelector('#formNovaMarcacao [name="duracao"]').addEventListener('change',atualizarMarcacao);document.querySelectorAll('[data-fechar-modal]').forEach(function(b){b.addEventListener('click',function(){modal.hidden=true;});});document.querySelectorAll('[data-fechar-estado]').forEach(function(b){b.addEventListener('click',function(){modalEstado.hidden=true;});});document.addEventListener('keydown',function(e){if(e.key==='Escape'){modal.hidden=true;modalEstado.hidden=true;}});
+document.getElementById('diaAnterior').addEventListener('click',function(){mudarDiaMarcacao(-1);});document.getElementById('diaSeguinte').addEventListener('click',function(){mudarDiaMarcacao(1);});document.getElementById('horaAnterior').addEventListener('click',function(){mudarHoraMarcacao(-15);});document.getElementById('horaSeguinte').addEventListener('click',function(){mudarHoraMarcacao(15);});document.querySelector('#formNovaMarcacao [name="duracao"]').addEventListener('change',atualizarMarcacao);document.querySelectorAll('[data-fechar-modal]').forEach(function(b){b.addEventListener('click',function(){modal.hidden=true;});});document.querySelectorAll('[data-fechar-fecho]').forEach(function(b){b.addEventListener('click',function(){modalFecho.hidden=true;});});document.querySelectorAll('[data-fechar-estado]').forEach(function(b){b.addEventListener('click',function(){modalEstado.hidden=true;});});document.addEventListener('keydown',function(e){if(e.key==='Escape'){modal.hidden=true;modalEstado.hidden=true;modalFecho.hidden=true;}});
 </script>
 <script src="{{ url_for('static', filename='clientes-offline.js', v='clientes4') }}"></script>
 <script src="{{ url_for('static', filename='clientes-marcacao.js', v='nome3') }}"></script>
