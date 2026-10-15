@@ -496,18 +496,18 @@ let temporizadorTelefone=null,versaoPesquisaCliente=0;
 function dataPt(data){if(!data)return '';const p=data.slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:data;}
 function formatarDataMarcacao(){const data=campoData.value,hora=campoHora.value;if(!data||!hora)return;const p=data.split('-'),nomes=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];const d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));document.getElementById('horarioMarcacao').textContent=nomes[d.getDay()]+' · '+p[2]+'/'+p[1]+'/'+p[0];document.getElementById('horaDestaque').textContent=hora;campoInicio.value=data+'T'+hora;}
 async function verificarDisponibilidade(){
-if(!navigator.onLine && window.modoAgenda!=='pessoal'
-   && window.modoAgenda!=='indisponibilidade'){
-    const botao=document.querySelector('#formNovaMarcacao .botao-marcar');
+if(!navigator.onLine && window.modoAgenda!=='pessoal' && window.modoAgenda!=='indisponibilidade'){
     const estado=document.getElementById('estadoDisponibilidade');
-    if(botao)botao.disabled=false;
-    if(estado){
-        estado.className='estado-disponibilidade disponibilidade-livre';
-        estado.textContent='Offline · horário sujeito a confirmação na sincronização';
-    }
+    const marcar=document.querySelector('#formNovaMarcacao .botao-marcar');
+    marcar.disabled=true;
+    const resultado=await window.BlessedAgendaOffline?.verificar(campoData.value+'T'+campoHora.value,
+      Number(document.querySelector('#formNovaMarcacao [name="duracao"]').value),Number(barbeiroMarcacao.value));
+    estado.className='estado-disponibilidade '+(resultado?.seguro?'disponibilidade-livre':'disponibilidade-ocupada');
+    estado.textContent=(resultado?.seguro?'✓ ':'⚠ ')+(resultado?.motivo||'Agenda offline indisponível.');
+    marcar.disabled=!resultado?.seguro;
     return;
 }
-if(window.modoAgenda==='indisponibilidade'){document.getElementById('estadoDisponibilidade').textContent='';return;}const pessoal=window.modoAgenda==='pessoal',profissional=pessoal?document.getElementById('barbeiroPessoal'):barbeiroMarcacao;const duracao=pessoal?document.getElementById('duracaoPessoal').value:document.querySelector('#formNovaMarcacao [name="duracao"]').value,estado=document.getElementById('estadoDisponibilidade'),marcar=document.querySelector(pessoal?'#formPessoal .botao-marcar':'#formNovaMarcacao .botao-marcar');estado.className='estado-disponibilidade';estado.textContent='A verificar...';marcar.disabled=true;if(!profissional.value){estado.textContent='Escolhe o barbeiro.';return;}try{const params=new URLSearchParams({data:campoData.value,hora:campoHora.value,duracao,barbeiro_id:profissional.value,tipo:pessoal?'pessoal':'cliente'});const resposta=await fetch('/api/disponibilidade?'+params.toString()),resultado=await resposta.json();if(!resposta.ok||!resultado.ok)throw new Error();if(resultado.disponivel){estado.className='estado-disponibilidade disponibilidade-livre';estado.textContent='✓ Disponível · '+resultado.inicio+'–'+resultado.fim+(!pessoal&&document.getElementById('repetirSemanalmente').value==='1'?' · As restantes datas serão verificadas ao guardar.':'');marcar.disabled=false;}else{estado.className='estado-disponibilidade disponibilidade-ocupada';if(resultado.conflitos&&resultado.conflitos.length){const c=resultado.conflitos[0];estado.textContent='⚠ Ocupado · '+c.inicio+'–'+c.fim+' · '+c.nome;}else estado.textContent='⚠ Horário indisponível';}}catch(e){estado.className='estado-disponibilidade disponibilidade-ocupada';estado.textContent='⚠ Não foi possível verificar o horário';}}
+if(window.modoAgenda==='indisponibilidade'){document.getElementById('estadoDisponibilidade').textContent='';return;}const pessoal=window.modoAgenda==='pessoal',profissional=pessoal?document.getElementById('barbeiroPessoal'):barbeiroMarcacao;const duracao=pessoal?document.getElementById('duracaoPessoal').value:document.querySelector('#formNovaMarcacao [name="duracao"]').value,estado=document.getElementById('estadoDisponibilidade'),marcar=document.querySelector(pessoal?'#formPessoal .botao-marcar':'#formNovaMarcacao .botao-marcar');estado.className='estado-disponibilidade';estado.textContent='A verificar...';marcar.disabled=true;if(!profissional.value){estado.textContent='Escolhe o barbeiro.';return;}try{const params=new URLSearchParams({data:campoData.value,hora:campoHora.value,duracao,barbeiro_id:profissional.value,tipo:pessoal?'pessoal':'cliente'});const resposta=await fetch('/api/disponibilidade?'+params.toString()),resultado=await resposta.json();if(!resposta.ok||!resultado.ok)throw new Error();if(resultado.disponivel){estado.className='estado-disponibilidade disponibilidade-livre';estado.textContent='✓ Disponível · '+resultado.inicio+'–'+resultado.fim+(!pessoal&&document.getElementById('repetirSemanalmente').value==='1'?' · As restantes datas serão verificadas ao guardar.':'');marcar.disabled=false;}else{estado.className='estado-disponibilidade disponibilidade-ocupada';if(resultado.conflitos&&resultado.conflitos.length){const c=resultado.conflitos[0];estado.textContent='⚠ Ocupado · '+c.inicio+'–'+c.fim+' · '+c.nome;}else estado.textContent='⚠ Horário indisponível';}}catch(e){estado.className='estado-disponibilidade disponibilidade-ocupada';estado.textContent='⚠ Sem ligação ao servidor; verifica a agenda offline';marcar.disabled=true;}}
 async function procurarClientePorTelefone(){
     const telefone=telefoneCliente.value.trim(),versao=versaoPesquisaCliente;
     estadoCliente.textContent='';
@@ -839,7 +839,8 @@ document.getElementById('diaAnterior').addEventListener('click',function(){mudar
 </script>
 <script src="{{ url_for('static', filename='clientes-offline.js', v='clientes4') }}"></script>
 <script src="{{ url_for('static', filename='clientes-marcacao.js', v='nome3') }}"></script>
-<script src="{{ url_for('static', filename='offline-bookings.js', v='offline1') }}"></script>
+<script src="{{ url_for('static', filename='agenda-offline.js', v='agenda2') }}"></script>
+<script src="{{ url_for('static', filename='offline-bookings.js', v='offline2') }}"></script>
 <script src="{{ url_for('static', filename='blessed-diagnostico.js', v='diag1') }}"></script>
 <script>
 if ('serviceWorker' in navigator) {
