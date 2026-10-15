@@ -1707,6 +1707,12 @@ def semana():
                 "barbeiro_username": m["barbeiro_username"],
                 "barbeiro_nome": m["barbeiro_nome"],
             })
+        # Na vista Todos, cada profissional tem uma faixa própria, sem ocultar marcações simultâneas.
+        indices_barbeiros = {b["id"]: i for i, b in enumerate(barbeiros)}
+        for item in marcacoes_dia:
+            item["faixa_barbeiro"] = indices_barbeiros.get(item["barbeiro_id"], 0)
+            item["total_faixas"] = max(1, len(barbeiros))
+
         # Calcula, para cada marcação, os intervalos em que existe
         # sobreposição com outra marcação do mesmo dia.
         for atual in marcacoes_dia:
