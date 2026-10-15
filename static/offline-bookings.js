@@ -27,30 +27,12 @@
             : '';
     }
 
-    function permitirMarcacaoSemServidor() {
-        if (window.modoAgenda === 'pessoal' || window.modoAgenda === 'indisponibilidade') return;
-        if (botaoMarcar) botaoMarcar.disabled = false;
-        if (estadoDisponibilidade) {
-            estadoDisponibilidade.className = 'estado-disponibilidade disponibilidade-livre';
-            estadoDisponibilidade.textContent = 'Offline · o horário será confirmado quando houver ligação';
-        }
+    // Nunca desbloquear marcações sem verificar a cópia local da agenda.
+    async function validarAgendaLocal(item) {
+        const resultado = await window.BlessedAgendaOffline?.verificar(
+            item.inicio, Number(item.duracao), item.barbeiro_id, item.offline_id);
+        if (!resultado?.seguro) throw new Error(resultado?.motivo || 'Agenda offline não disponível.');
     }
-
-    // A app pode ter Internet e o VPS estar indisponível. Para a marcação offline,
-    // uma falha de rede na verificação de disponibilidade deve libertar o botão.
-    const fetchOriginal = window.fetch.bind(window);
-    window.fetch = async function () {
-        const args = Array.from(arguments);
-        try {
-            return await fetchOriginal.apply(window, args);
-        } catch (erro) {
-            const alvo = String(args[0] || '');
-            if (alvo.indexOf('/api/disponibilidade') !== -1) {
-                permitirMarcacaoSemServidor();
-            }
-            throw erro;
-        }
-    };
 
     function abrirDb() {
         return new Promise(function (resolve, reject) {
@@ -105,6 +87,8 @@
         });
         db.close();
     }
+
+    window.BlessedOfflineBookings = {listarPendentes: listarLocaisDoUtilizador};
 
     function idOffline() {
         if (crypto.randomUUID) return crypto.randomUUID();
@@ -218,17 +202,26 @@
         if (botaoMarcar) botaoMarcar.disabled = true;
 
         try {
-            if (!navigator.onLine) throw new TypeError('offline');
+            if (!navigator.onLine) {
+                await validarAgendaLocal(item);
+                await guardarLocal(item);
+                mostrarEstado('Marcação guardada offline. Será validada ao sincronizar.', false);
+                document.getElementById('modalMarcacao').hidden = true;
+                form.reset();
+                return;
+            }
             await enviar(item);
             window.location.reload();
         } catch (e) {
             // Sem resposta do servidor: guardar localmente. Erros HTTP reais ficam visíveis.
             if (!e.status) {
+                try { await validarAgendaLocal(item); }
+                catch (conflito) { mostrarEstado(conflito.message, true); return; }
                 await guardarLocal(item);
                 mostrarEstado('Sem ligação ao servidor — marcação guardada neste dispositivo para sincronizar.', false);
                 document.getElementById('modalMarcacao').hidden = true;
                 form.reset();
-                permitirMarcacaoSemServidor();
+
             } else {
                 mostrarEstado(e.message, true);
             }
@@ -242,8 +235,7 @@
     });
 
     window.addEventListener('offline', function () {
-        permitirMarcacaoSemServidor();
-        mostrarEstado('Sem ligação — podes continuar a criar marcações.', false);
+        mostrarEstado('Sem ligação — horários sujeitos à agenda guardada.', false);
     });
 
     // Cobre também o caso de haver Internet mas o VPS/servidor ter estado indisponível.
@@ -253,8 +245,7 @@
     }, 15000);
 
     if (!navigator.onLine) {
-        permitirMarcacaoSemServidor();
-        mostrarEstado('Sem ligação — podes continuar a criar marcações.', false);
+        mostrarEstado('Sem ligação — horários sujeitos à agenda guardada.', false);
     } else {
         sincronizar().catch(function () {});
     }
