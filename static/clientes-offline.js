@@ -120,6 +120,14 @@
     // Atualizar a lista apenas quando existe uma sessão online válida.
     // Nunca apagar marcações offline pendentes.
     window.addEventListener('online', sincronizarClientes);
+    // Safari/iPad pode recuperar uma página da memória sem disparar "online".
+    // Voltar à agenda com rede deve atualizar a lista local.
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && navigator.onLine) sincronizarClientes();
+    });
+    window.addEventListener('pageshow', function () {
+        if (navigator.onLine) sincronizarClientes();
+    });
 
     if (utilizadorId && navigator.onLine) {
         sincronizarClientes();
