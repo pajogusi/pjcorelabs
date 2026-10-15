@@ -3845,6 +3845,51 @@ def cliente_para_marcacao(cliente_id):
         con.close()
 
 
+@app.route("/api/agenda/offline")
+def agenda_snapshot_offline():
+    """Intervalos ocupados para consulta offline; sem nomes nem dados pessoais."""
+    utilizador = utilizador_atual()
+    if not utilizador:
+        return {"ok": False}, 401
+    con = get_db()
+    try:
+        hoje = agora_barbearia().date()
+        limite = hoje + timedelta(days=45)
+        de, ate = hoje.isoformat(), limite.isoformat()
+        marcacoes = con.execute("""
+            SELECT barbeiro_id, inicio, duracao_minutos FROM marcacoes
+            WHERE estado != 'cancelada' AND substr(inicio,1,10) BETWEEN ? AND ?
+        """, (de, ate)).fetchall()
+        reservas = con.execute("""
+            SELECT barbeiro_id, inicio, duracao_minutos FROM reservas_online
+            WHERE estado = 'aguarda_pagamento' AND expira_em > ?
+              AND substr(inicio,1,10) BETWEEN ? AND ?
+        """, (datetime.now().astimezone().isoformat(timespec="seconds"), de, ate)).fetchall()
+        pessoais = con.execute("""
+            SELECT barbeiro_id, inicio, duracao_minutos FROM bloqueios_pessoais
+            WHERE substr(inicio,1,10) BETWEEN ? AND ?
+        """, (de, ate)).fetchall()
+        periodos = con.execute("""
+            SELECT barbeiro_id, inicio, fim, tipo FROM indisponibilidades
+            WHERE inicio < ? AND fim > ?
+        """, (limite.isoformat() + "T23:59", de + "T00:00")).fetchall()
+        intervalos = []
+        for item in list(marcacoes) + list(reservas) + list(pessoais):
+            inicio = datetime.fromisoformat(item["inicio"])
+            intervalos.append({"barbeiro_id": item["barbeiro_id"],
+                "inicio": inicio.isoformat(timespec="minutes"),
+                "fim": (inicio + timedelta(minutes=item["duracao_minutos"])).isoformat(timespec="minutes")})
+        for item in periodos:
+            intervalos.append({"barbeiro_id": None if item["tipo"] == "encerramento" else item["barbeiro_id"],
+                "inicio": item["inicio"], "fim": item["fim"]})
+        resposta = jsonify(ok=True, desde=de, ate=ate, intervalos=intervalos,
+                           atualizado_em=agora_barbearia().isoformat(timespec="seconds"))
+        resposta.headers["Cache-Control"] = "no-store"
+        return resposta
+    finally:
+        con.close()
+
+
 @app.route("/api/disponibilidade")
 def disponibilidade():
     data_pedida = request.args.get("data", "").strip()
