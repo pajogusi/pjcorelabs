@@ -29,6 +29,7 @@
 
     // Nunca desbloquear marcações sem verificar a cópia local da agenda.
     async function validarAgendaLocal(item) {
+        if (item.repetir_semanalmente === '1') throw new Error('Marcações semanais precisam de verificação online.');
         const resultado = await window.BlessedAgendaOffline?.verificar(
             item.inicio, Number(item.duracao), item.barbeiro_id, item.offline_id);
         if (!resultado?.seguro) throw new Error(resultado?.motivo || 'Agenda offline não disponível.');
