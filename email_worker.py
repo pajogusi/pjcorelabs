@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 
+import os
 from datetime import datetime
 
 from app import get_db, enviar_sms_do_barbeiro
 
 
 def processar_fila():
+    if os.environ.get("BLESSED_DISABLE_SMS") == "1":
+        print("SMS WORKER: bloqueado por BLESSED_DISABLE_SMS; fila não alterada")
+        return
+
     agora = datetime.now().isoformat(timespec="seconds")
     con = get_db()
 
@@ -25,6 +30,7 @@ def processar_fila():
         WHERE s.estado = 'pendente'
           AND s.previsto_para IS NOT NULL
           AND s.previsto_para <= ?
+          AND s.tentativas < 3
         ORDER BY s.previsto_para, s.id
     """, (agora,)).fetchall()
 
@@ -46,8 +52,28 @@ def processar_fila():
                 datas = ", ".join(datetime.fromisoformat(item["inicio"]).strftime("%d/%m/%Y") for item in ocorrencias)
                 hora = datetime.fromisoformat(ocorrencias[0]["inicio"]).strftime("%H:%M")
                 mensagem = f"Blessed Barbearia: Ola {ocorrencias[0]['nome']}, confirmamos as suas marcacoes para os dias {datas}, sempre as {hora}."
-        # Confirmações de série abrangem apenas as ocorrências ainda ativas.
-        if not sms["barbeiro_id"] or (not serie_ativa and sms["marcacao_estado"] != "marcada") or (sms["tipo"] == "confirmacao_serie" and not serie_ativa):
+        # Validar a mensagem de acordo com o tipo.
+        #
+        # - cancelamento: a marcação deve estar cancelada;
+        # - confirmacao_serie: deve existir pelo menos uma ocorrência ativa;
+        # - restantes SMS: a marcação deve continuar marcada.
+        if sms["tipo"] == "cancelamento":
+            sms_valido = bool(
+                sms["barbeiro_id"]
+                and sms["marcacao_estado"] == "cancelada"
+            )
+        elif sms["tipo"] == "confirmacao_serie":
+            sms_valido = bool(
+                sms["barbeiro_id"]
+                and serie_ativa
+            )
+        else:
+            sms_valido = bool(
+                sms["barbeiro_id"]
+                and sms["marcacao_estado"] == "marcada"
+            )
+
+        if not sms_valido:
             con.execute("""
                 UPDATE sms_fila
                 SET estado = 'cancelado',
@@ -82,19 +108,32 @@ def processar_fila():
             con.commit()
             print(f"SMS {sms_id}: enviado")
         else:
+            novas_tentativas = sms["tentativas"] + 1
+            novo_estado = "falhou" if novas_tentativas >= 3 else "pendente"
+
             con.execute("""
                 UPDATE sms_fila
-                SET tentativas = tentativas + 1,
+                SET tentativas = ?,
+                    estado = ?,
                     ultima_tentativa_em = ?,
                     erro = ?
                 WHERE id = ? AND estado = 'pendente'
             """, (
+                novas_tentativas,
+                novo_estado,
                 agora,
-                "Falha no envio pelo SMSGate",
+                "Falha no envio pelo fornecedor SMS",
                 sms_id,
             ))
             con.commit()
-            print(f"SMS {sms_id}: falhou - permanece pendente")
+
+            if novo_estado == "falhou":
+                print(f"SMS {sms_id}: falhou definitivamente após 3 tentativas")
+            else:
+                print(
+                    f"SMS {sms_id}: falhou - "
+                    f"tentativa {novas_tentativas}/3"
+                )
 
     con.close()
 

@@ -79,10 +79,17 @@ ON marcacoes(cliente_id);
 con.executescript("""
 CREATE TABLE IF NOT EXISTS campanhas (
     id INTEGER PRIMARY KEY,
+
     titulo TEXT NOT NULL,
     mensagem TEXT NOT NULL,
+
     canal TEXT NOT NULL DEFAULT 'email'
-        CHECK (canal IN ('email', 'sms')),
+        CHECK (canal IN (
+            'email',
+            'sms',
+            'ambos'
+        )),
+
     tipo TEXT NOT NULL DEFAULT 'geral'
         CHECK (tipo IN (
             'geral',
@@ -90,19 +97,37 @@ CREATE TABLE IF NOT EXISTS campanhas (
             'natal',
             'ano_novo',
             'ferias',
-            'horario_especial'
+            'horario_especial',
+            'livre'
         )),
+
     estado TEXT NOT NULL DEFAULT 'rascunho'
         CHECK (estado IN (
             'rascunho',
+            'confirmada',
             'agendada',
             'em_envio',
             'pausada',
             'concluida',
             'cancelada'
         )),
+
     envio_previsto TEXT,
-    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    nome TEXT,
+    barbeiro_id INTEGER,
+    assunto TEXT,
+    total_destinatarios INTEGER NOT NULL DEFAULT 0,
+    criado_por_id INTEGER,
+    confirmado_em TEXT,
+
+    tamanho_lote INTEGER NOT NULL DEFAULT 10,
+    intervalo_segundos INTEGER NOT NULL DEFAULT 60,
+    max_por_hora INTEGER NOT NULL DEFAULT 100,
+    iniciado_em TEXT,
+    pausado_em TEXT,
+    concluido_em TEXT
 );
 """)
 

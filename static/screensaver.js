@@ -151,3 +151,108 @@
         }
     }, true);
 })();
+
+/* Perfil do utilizador ativo e seletor de agenda no canto superior direito. */
+(function () {
+    "use strict";
+
+    if (!document.querySelector('.perfil-agenda')) return;
+
+    const style = document.createElement('style');
+    style.id = 'perfil-agenda-estilos';
+    style.textContent = `
+        .topo-semana-com-perfil {
+            position: relative;
+            min-height: 58px;
+        }
+        .topo-semana-com-perfil .titulo-semana {
+            margin-right: 220px;
+        }
+        .perfil-agenda {
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 40;
+            min-width: 190px;
+        }
+        .perfil-agenda > summary {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 9px;
+            min-height: 44px;
+            padding: 6px 10px;
+            border: 1px solid #2f2f2f;
+            border-radius: 12px;
+            background: #111;
+            color: #fff;
+            cursor: pointer;
+            user-select: none;
+        }
+        .perfil-agenda > summary::-webkit-details-marker { display: none; }
+        .perfil-agenda > summary img,
+        .perfil-avatar-fallback {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #2b2b2b;
+            color: #fff;
+            font-weight: 700;
+            flex: 0 0 32px;
+        }
+        .perfil-agenda > summary strong {
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .perfil-seta { opacity: .8; }
+        .perfil-agenda-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 220px;
+            padding: 7px;
+            border: 1px solid #333;
+            border-radius: 12px;
+            background: #101010;
+            box-shadow: 0 14px 36px rgba(0,0,0,.55);
+        }
+        .perfil-agenda-menu a {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 9px 10px;
+            border-radius: 8px;
+            color: #eee;
+            text-decoration: none;
+        }
+        .perfil-agenda-menu a:hover,
+        .perfil-agenda-menu a.ativo { background: #1b2c3d; }
+        .perfil-agenda-menu img,
+        .perfil-avatar-mini {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            object-fit: cover;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #2b2b2b;
+            color: #fff;
+            font-weight: 700;
+            flex: 0 0 28px;
+        }
+        @media (max-width: 900px) {
+            .topo-semana-com-perfil .titulo-semana { margin-right: 170px; }
+            .perfil-agenda { min-width: 150px; }
+            .perfil-agenda > summary strong { max-width: 85px; }
+        }
+    `;
+    document.head.appendChild(style);
+})();

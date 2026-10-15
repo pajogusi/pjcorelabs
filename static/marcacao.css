@@ -449,3 +449,135 @@ body.pagina-semana .agenda-cabecalho {
 .marcacao-grelha.estado-concluída strong {
     color: #ffffff !important;
 }
+
+/* Modal de estado/fecho do serviço: permitir ver todo o conteúdo */
+.modal-estado-conteudo {
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Fecho do serviço separado */
+.modal-fecho-conteudo {
+    width: min(440px, calc(100vw - 32px));
+    max-width: 440px;
+}
+
+.form-fecho-simples {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-top: 18px;
+}
+
+.campo-valor-fecho {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.campo-valor-fecho input {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 1.35rem;
+    padding: 14px 16px;
+}
+
+.botao-alterar-estado-fecho {
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.estados-fecho-servico {
+    margin-top: 12px;
+}
+
+.estados-fecho-servico .opcoes-estado {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+/* Cancelamento inline — espaçamento e aspeto consistente */
+.cancelamento-marcacao-inline {
+    margin-top: 12px;
+}
+
+.cancelamento-marcacao-inline > summary {
+    list-style: none;
+    cursor: pointer;
+    margin: 0;
+}
+
+.cancelamento-marcacao-inline > summary::-webkit-details-marker {
+    display: none;
+}
+
+.cancelamento-marcacao-inline[open] > summary {
+    margin-bottom: 10px;
+}
+
+.cancelamento-marcacao-inline form {
+    margin-top: 0 !important;
+}
+
+.opcoes-estado {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* ===== Layout final do modal de marcação ===== */
+
+.opcoes-estado {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.opcoes-estado .botao-estado {
+    width: 100%;
+    margin: 0;
+}
+
+.opcoes-estado .botao-estado:nth-child(3) {
+    grid-column: 1 / -1;
+}
+
+/* Cancelamento normal */
+.cancelamento-marcacao-inline {
+    margin-top: 12px;
+    width: 100%;
+}
+
+.cancelamento-marcacao-inline > summary {
+    width: 100%;
+    box-sizing: border-box;
+    list-style: none;
+    cursor: pointer;
+    margin: 0;
+}
+
+.cancelamento-marcacao-inline > summary::-webkit-details-marker {
+    display: none;
+}
+
+.cancelamento-marcacao-inline[open] > summary {
+    margin-bottom: 12px;
+}
+
+/* Separar claramente cancelamento da série */
+#formCancelarSerie {
+    margin-top: 20px !important;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,.14);
+}
+
+#formCancelarSerie button {
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+}

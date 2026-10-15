@@ -58,6 +58,11 @@
             <span>Estatísticas</span>
         </a>
 
+        <a href="/contabilidade" class="menu-item">
+            <span class="menu-icone">€</span>
+            <span>Contabilidade</span>
+        </a>
+
         {% if utilizador.papel == 'gestor' %}
         <a href="/definicoes" class="menu-item">
             <span class="menu-icone">⚙</span>
@@ -78,7 +83,7 @@
             <p>Cortes concluídos</p>
         </div>
 
-        {% if utilizador.papel == 'gestor' %}
+        {% if utilizador.papel == 'gestor' or utilizador.e_admin %}
         <form method="get" class="estatisticas-barbeiro">
             <label>
                 Estatísticas:
@@ -118,25 +123,27 @@
 
         <article>
             <span>Hoje</span>
-            <strong>{{ estatisticas.hoje }}</strong>
+            <strong>{{ estatisticas.hoje }} cortes</strong>
         </article>
 
         <article>
             <span>Esta semana</span>
-            <strong>{{ estatisticas.semana }}</strong>
+            <strong>{{ estatisticas.semana }} cortes</strong>
         </article>
 
         <article>
             <span>Este mês</span>
-            <strong>{{ estatisticas.mes }}</strong>
+            <strong>{{ estatisticas.mes }} cortes</strong>
         </article>
 
         <article>
             <span>Este ano</span>
-            <strong>{{ estatisticas.ano }}</strong>
+            <strong>{{ estatisticas.ano }} cortes</strong>
         </article>
 
     </section>
+
+
 
     {% if historico_mensal %}
     <section class="historico-cortes">

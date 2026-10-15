@@ -156,7 +156,9 @@ button {
         grid-template-columns:1fr;
     }
 
-    .check {
+    .avatar-admin{display:flex;align-items:center;gap:8px;grid-column:1/-1;padding:8px;border:1px solid #303030;border-radius:9px}.avatar-admin img,.avatar-admin>span{width:48px;height:48px;border-radius:50%;object-fit:cover}.avatar-admin>span{display:grid;place-items:center;background:#596b3b;color:#fff;font-weight:800}.avatar-admin label{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.avatar-admin input[type=file]{max-width:260px}
+
+.check {
         min-height:34px;
     }
 }
@@ -225,19 +227,22 @@ button {
     <div style="overflow:auto;max-height:560px;border:1px solid #303030;border-radius:8px">
         <table style="width:100%;border-collapse:collapse;min-width:1100px">
             <thead><tr>
-                {% for titulo in ['Data/Hora', 'Utilizador', 'Equipamento', 'Dispositivo', 'Método', 'Caminho', 'HTTP', 'IP', 'Email'] %}
+                {% for titulo in ['Data/Hora', 'Utilizador', 'Ação', 'Agenda', 'Marcação', 'Equipamento', 'Dispositivo', 'Método', 'Caminho', 'HTTP', 'IP', 'Email'] %}
                 <th style="padding:8px;text-align:left">{{ titulo }}</th>
                 {% endfor %}
             </tr></thead>
             <tbody>{% for log in logs_admin %}<tr style="border-top:1px solid #252525">
                 <td style="padding:8px;white-space:nowrap">{{ log.criado_em }}</td>
                 <td style="padding:8px">{{ log.utilizador_nome or '—' }}{% if log.utilizador_username %}<small style="display:block;opacity:.7">{{ log.utilizador_username }}</small>{% endif %}</td>
+                <td style="padding:8px">{{ log.acao or '—' }}</td>
+                <td style="padding:8px">{{ log.alvo_barbeiro_nome or '—' }}</td>
+                <td style="padding:8px">{{ log.marcacao_id or '—' }}</td>
                 <td style="padding:8px" title="{{ log.equipamento_id or '' }}">{{ log.equipamento_nome or '—' }}{% if log.equipamento_novo %}<small style="display:block;opacity:.7">Novo navegador</small>{% endif %}</td>
                 <td style="padding:8px" title="{{ log.user_agent or '' }}">{{ log.dispositivo or '—' }}</td>
                 <td style="padding:8px">{{ log.metodo }}</td><td style="padding:8px">{{ log.caminho }}</td>
                 <td style="padding:8px">{{ log.estado_http }}</td><td style="padding:8px">{{ log.ip or '—' }}</td>
                 <td style="padding:8px">{{ log.enviado_em or 'Não enviado' }}</td>
-            </tr>{% else %}<tr><td colspan="9" style="padding:14px">Ainda não existem logs.</td></tr>{% endfor %}</tbody>
+            </tr>{% else %}<tr><td colspan="12" style="padding:14px">Ainda não existem logs.</td></tr>{% endfor %}</tbody>
         </table>
     </div>
 </section>
@@ -286,8 +291,14 @@ button {
 
             <form class="utilizador-form"
                   method="post"
+                  enctype="multipart/form-data"
                   action="/admin/utilizadores/{{ u.id }}/guardar">
 
+                <div class="avatar-admin">
+                    {% if u.avatar_path %}<img src="{{ url_for('static', filename=u.avatar_path) }}" alt="{{ u.nome }}">{% else %}<span>{{ u.nome[:1]|upper }}</span>{% endif %}
+                    <label>Avatar<input type="file" name="avatar" accept="image/jpeg,image/png,image/webp"></label>
+                    {% if u.avatar_path %}<label class="check"><input type="checkbox" name="remover_avatar" value="1"> Remover avatar</label>{% endif %}
+                </div>
                 <input
                     name="nome"
                     value="{{ u.nome }}"
