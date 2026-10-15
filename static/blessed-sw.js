@@ -1,8 +1,9 @@
-const CACHE = 'blessed-offline-v4';
+const CACHE = 'blessed-offline-v5';
 const STATIC = [
   '/static/style.css',
   '/static/sidebar.css',
   '/static/marcacao.css',
+  '/static/agenda-offline.js',
   '/static/offline-bookings.js',
   '/static/blessed-diagnostico.js',
   '/static/clientes-offline.js',
