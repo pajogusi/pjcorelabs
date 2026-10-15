@@ -101,7 +101,7 @@
         <aside class="lateral-marca">
             <div class="marca marca-lateral"><img src="{{ url_for('static', filename='blessed-logo.png') }}" alt="Barbearia Blessed" class="logo-blessed"></div>
             <nav class="menu-principal">
-                
+
 <a href="/semana" class="menu-item ativo" title="Agenda"><span class="menu-icone icone-agenda" aria-hidden="true"></span><span>Agenda</span></a>
                 <a href="/clientes" class="menu-item" title="Clientes"><span class="menu-icone icone-clientes" aria-hidden="true"></span><span>Clientes</span></a>
                 <a href="/equipamento" class="menu-item" title="Identificar este equipamento"><span class="menu-icone" aria-hidden="true">▤</span><span>Equipamento</span></a>
@@ -219,7 +219,7 @@
                         {% for dia in dias %}
                         <div class="celula-agenda" data-data="{{ dia.data }}" data-hora="{{ hora }}" role="button" tabindex="0" title="{{ hora }}">
                             {% for m in dia.marcacoes %}{% if m.hora_base == hora %}
-                            <div class="marcacao-grelha marcacao-posicionada estado-{{ m.estado }} barbeiro-id-{{ m.barbeiro_id }} barbeiro-{{ m.barbeiro_username }}"
+                            <div class="marcacao-grelha marcacao-posicionada {% if m.valor_cobrado_centimos is not none %}marcacao-paga{% endif %} estado-{{ m.estado }} barbeiro-id-{{ m.barbeiro_id }} barbeiro-{{ m.barbeiro_username }}"
                                  style="--deslocamento: {{ m.deslocamento }}; --duracao: {{ m.duracao }};"
                                  data-marcacao-id="{{ m.id }}" data-nome="{{ m.nome }}"
                                  data-hora-real="{{ m.hora }}" data-data-real="{{ m.inicio[:10] }}"
@@ -238,7 +238,7 @@
                                         {{ m.barbeiro_nome }} ·
                                     {% endif %}
                                     {{ m.nome }}
-                                    {% if m.valor_cobrado_centimos is not none %} €{% endif %}
+
                                 </strong>
                             </div>
                             {% endif %}{% endfor %}
@@ -438,6 +438,15 @@
                        step="0.01"
                        inputmode="decimal"
                        placeholder="0,00">
+            </label>
+
+            <label class="campo-valor-fecho">
+                Método de pagamento
+                <select name="metodo_pagamento" id="metodoPagamentoFecho" required>
+                    <option value="">Selecionar método</option>
+                    <option value="mbway">MB WAY</option>
+                    <option value="cash">Cash</option>
+                </select>
             </label>
 
             <input type="hidden"

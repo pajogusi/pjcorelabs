@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Contabilidade — Blessed</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='estatisticas.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='screensaver.css') }}">
+</head>
+
+<body>
+
+<div class="app app-semana">
+<div class="estrutura-semana">
+
+<aside class="lateral-marca">
+
+    <div class="marca marca-lateral">
+        <img src="{{ url_for('static', filename='blessed-logo.png') }}"
+             alt="Barbearia Blessed"
+             class="logo-blessed">
+    </div>
+
+    <nav class="menu-principal">
+
+        <a href="/semana" class="menu-item">
+            <span class="menu-icone">▣</span>
+            <span>Agenda</span>
+        </a>
+
+        <a href="/clientes" class="menu-item">
+            <span class="menu-icone">♙</span>
+            <span>Clientes</span>
+        </a>
+
+        <a href="/estatisticas" class="menu-item">
+            <span class="menu-icone">📊</span>
+            <span>Estatísticas</span>
+        </a>
+
+        <a href="/contabilidade" class="menu-item ativo">
+            <span class="menu-icone">€</span>
+            <span>Contabilidade</span>
+        </a>
+
+    </nav>
+
+</aside>
+
+<main class="main-semana estatisticas-main">
+
+    <section class="estatisticas-topo">
+        <div>
+            <h1>Contabilidade</h1>
+            <p>Valores recebidos pelos serviços concluídos</p>
+        </div>
+
+        {% if pode_ver_todos %}
+        <form method="get" class="estatisticas-barbeiro">
+            <label>
+                Ver:
+                <select name="barbeiro" onchange="this.form.submit()">
+
+                    <option value="todos"
+                        {% if barbeiro_selecionado is none %}selected{% endif %}>
+                        Blessed — Total
+                    </option>
+
+                    {% for barbeiro in barbeiros %}
+                    <option value="{{ barbeiro.id }}"
+                        {% if barbeiro_selecionado == barbeiro.id %}selected{% endif %}>
+                        {{ barbeiro.nome }}
+                    </option>
+                    {% endfor %}
+
+                </select>
+            </label>
+        </form>
+        {% endif %}
+    </section>
+
+    <section class="estatisticas-resumo">
+
+        <article>
+            <span>Hoje</span>
+            <strong>€ {{ '%.2f'|format(resumo.hoje.valor / 100) }}</strong>
+            <small>{{ resumo.hoje.total }} serviços</small>
+        </article>
+
+        <article>
+            <span>Esta semana</span>
+            <strong>€ {{ '%.2f'|format(resumo.semana.valor / 100) }}</strong>
+            <small>{{ resumo.semana.total }} serviços</small>
+        </article>
+
+        <article>
+            <span>Este mês</span>
+            <strong>€ {{ '%.2f'|format(resumo.mes.valor / 100) }}</strong>
+            <small>{{ resumo.mes.total }} serviços</small>
+        </article>
+
+        <article>
+            <span>Este ano</span>
+            <strong>€ {{ '%.2f'|format(resumo.ano.valor / 100) }}</strong>
+            <small>{{ resumo.ano.total }} serviços</small>
+        </article>
+
+    </section>
+
+
+    <section class="historico-cortes">
+        <h2>Recebimentos por método de pagamento</h2>
+        <p>Valores organizados pela data em que o pagamento foi registado.</p>
+
+        <div class="historico-cortes-lista">
+            {% for titulo, chave in [
+                ("Hoje", "hoje"),
+                ("Esta semana", "semana"),
+                ("Este mês", "mes")
+            ] %}
+            {% set valores = recebimentos[chave] %}
+            <article>
+                <h3>{{ titulo }}</h3>
+                <p>MB WAY: <strong>€ {{ '%.2f'|format(valores.mbway / 100) }}</strong></p>
+                <p>Cash: <strong>€ {{ '%.2f'|format(valores.cash / 100) }}</strong></p>
+                <p>Sem método: <strong>€ {{ '%.2f'|format(valores.sem_metodo / 100) }}</strong></p>
+                <hr>
+                <p>Total recebido: <strong>€ {{ '%.2f'|format(valores.total / 100) }}</strong></p>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if por_barbeiro %}
+    <section class="historico-cortes">
+        <h2>Este mês por barbeiro</h2>
+
+        <div class="historico-cortes-lista">
+            {% for linha in por_barbeiro %}
+            <article>
+                <span>{{ linha.nome }}</span>
+                <strong>€ {{ '%.2f'|format(linha.valor / 100) }}</strong>
+                <small>{{ linha.total }} serviços</small>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if historico %}
+    <section class="historico-cortes">
+        <h2>Histórico mensal</h2>
+
+        <div class="historico-cortes-lista">
+            {% set nomes_meses = {
+                '01':'Janeiro',
+                '02':'Fevereiro',
+                '03':'Março',
+                '04':'Abril',
+                '05':'Maio',
+                '06':'Junho',
+                '07':'Julho',
+                '08':'Agosto',
+                '09':'Setembro',
+                '10':'Outubro',
+                '11':'Novembro',
+                '12':'Dezembro'
+            } %}
+
+            {% for linha in historico %}
+                {% set partes = linha.mes.split('-') %}
+                <article>
+                    <span>{{ nomes_meses[partes[1]] }} {{ partes[0] }}</span>
+                    <strong>€ {{ '%.2f'|format(linha.valor / 100) }}</strong>
+                    <small>{{ linha.total }} serviços</small>
+                </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+</main>
+
+</div>
+</div>
+
+<script src="{{ url_for('static', filename='screensaver.js') }}"></script>
+
+</body>
+</html>

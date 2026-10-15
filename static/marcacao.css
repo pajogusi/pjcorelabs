@@ -581,3 +581,16 @@ body.pagina-semana .agenda-cabecalho {
     margin: 0;
     box-sizing: border-box;
 }
+
+
+/* Blessed Multiuser — marcações com pagamento registado */
+.marcacao-grelha.marcacao-paga {
+    background: #c62828 !important;
+    background-color: #c62828 !important;
+    color: #ffffff !important;
+}
+
+.marcacao-grelha.marcacao-paga strong,
+.marcacao-grelha.marcacao-paga span {
+    color: #ffffff !important;
+}

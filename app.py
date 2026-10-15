@@ -1107,6 +1107,8 @@ def garantir_esquema():
         con.execute("ALTER TABLE marcacoes ADD COLUMN criado_por_id INTEGER")
     if "valor_cobrado_centimos" not in colunas:
         con.execute("ALTER TABLE marcacoes ADD COLUMN valor_cobrado_centimos INTEGER")
+    if "metodo_pagamento" not in colunas:
+        con.execute("ALTER TABLE marcacoes ADD COLUMN metodo_pagamento TEXT")
     if "fechado_em" not in colunas:
         con.execute("ALTER TABLE marcacoes ADD COLUMN fechado_em TEXT")
     if "fechado_por_id" not in colunas:
@@ -2146,6 +2148,43 @@ def contabilidade():
             (hoje.strftime("%Y-%m"),)
         ).fetchall()
 
+
+    # Recebimentos por método, usando a data do fecho financeiro.
+    def recebimentos_por_metodo(inicio, fim):
+        linhas = con.execute(
+            """
+            SELECT
+                COALESCE(NULLIF(metodo_pagamento, ''), 'sem_metodo') AS metodo,
+                COUNT(*) AS quantidade,
+                COALESCE(SUM(valor_cobrado_centimos), 0) AS valor
+            FROM marcacoes
+            WHERE valor_cobrado_centimos IS NOT NULL
+              AND fechado_em IS NOT NULL
+              AND substr(fechado_em, 1, 10) >= ?
+              AND substr(fechado_em, 1, 10) < ?
+            """ + filtro,
+            (inicio.isoformat(), fim.isoformat(), *parametros_barbeiro)
+        ).fetchall()
+
+        valores = {
+            "mbway": 0,
+            "cash": 0,
+            "sem_metodo": 0,
+        }
+        for linha in linhas:
+            metodo = linha["metodo"]
+            valores[metodo if metodo in valores else "sem_metodo"] += linha["valor"]
+        valores["total"] = sum(valores.values())
+        return valores
+
+    recebimentos = {
+        "hoje": recebimentos_por_metodo(hoje, hoje + timedelta(days=1)),
+        "semana": recebimentos_por_metodo(
+            inicio_semana, inicio_semana + timedelta(days=7)
+        ),
+        "mes": recebimentos_por_metodo(inicio_mes, inicio_mes_seguinte),
+    }
+
     con.close()
 
     return render_template(
@@ -2156,6 +2195,7 @@ def contabilidade():
         resumo=resumo,
         historico=historico,
         por_barbeiro=por_barbeiro,
+        recebimentos=recebimentos,
         pode_ver_todos=pode_ver_todos,
     )
 
@@ -4742,7 +4782,11 @@ def fechar_marcacao(marcacao_id):
         return "Resultado inválido", 400
 
     valor_centimos = None
+    metodo_pagamento = None
     if resultado == "recebido":
+        metodo_pagamento = request.form.get("metodo_pagamento", "").strip().lower()
+        if metodo_pagamento not in ("mbway", "cash"):
+            return "Escolhe MB WAY ou Cash", 400
         valor_texto = request.form.get("valor", "").strip().replace(",", ".")
         try:
             valor = float(valor_texto)
@@ -4783,11 +4827,12 @@ def fechar_marcacao(marcacao_id):
             """
             UPDATE marcacoes
             SET estado = ?, valor_cobrado_centimos = ?,
+                metodo_pagamento = ?,
                 fechado_em = ?, fechado_por_id = ?,
                 atualizado_em = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
-            (estado, valor_centimos, agora_barbearia().isoformat(timespec="seconds"), utilizador["id"], marcacao_id),
+            (estado, valor_centimos, metodo_pagamento, agora_barbearia().isoformat(timespec="seconds"), utilizador["id"], marcacao_id),
         )
         con.commit()
 
@@ -4883,6 +4928,7 @@ def alterar_estado_marcacao(marcacao_id):
             UPDATE marcacoes
             SET estado = ?,
                 valor_cobrado_centimos = NULL,
+                metodo_pagamento = NULL,
                 fechado_em = NULL,
                 fechado_por_id = NULL,
                 atualizado_em = CURRENT_TIMESTAMP
