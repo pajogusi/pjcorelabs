@@ -39,7 +39,7 @@
         aAtualizar = true;
         try {
             const resposta = await fetch('/api/agenda/offline', {credentials:'same-origin',cache:'no-store',
-                headers:{Accept:'application/json'}, signal:AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined});
+                headers:{Accept:'application/json'}, signal:typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(8000) : undefined});
             if (!resposta.ok || !resposta.headers.get('content-type')?.includes('application/json')) return false;
             const dados = await resposta.json();
             if (!dados.ok || !Array.isArray(dados.intervalos)) return false;
