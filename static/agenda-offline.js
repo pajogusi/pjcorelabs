@@ -49,6 +49,11 @@
         finally { aAtualizar = false; }
     }
     function sobrepoe(a,b,c,d) { return a < d && b > c; }
+    function formatarFim(inicio, minutos) {
+        const d = new Date(new Date(inicio).getTime() + minutos * 60000);
+        return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-') +
+            'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
     async function verificar(inicio, duracao, barbeiroId, ignorarId) {
         const dados = await ler();
         if (!dados || !dados.desde || !dados.ate) return {seguro:false, motivo:'Sem cópia local da agenda. Liga à Internet para atualizar.'};
@@ -66,7 +71,7 @@
         const pendentes = await window.BlessedOfflineBookings?.listarPendentes?.() || [];
         if (pendentes.some(p => p.offline_id !== ignorarId && Number(p.barbeiro_id) === Number(barbeiroId) &&
             sobrepoe(inicio, fimLocal, p.inicio,
-                new Date(new Date(p.inicio).getTime() + Number(p.duracao)*60000).toISOString().slice(0,16)))) {
+                formatarFim(p.inicio, Number(p.duracao))))) {
             return {seguro:false, motivo:'Conflito com outra marcação pendente neste equipamento.'};
         }
         return {seguro:true, motivo:'Livre na última cópia da agenda · sujeito a confirmação ao sincronizar.'};
