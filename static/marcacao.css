@@ -581,3 +581,35 @@ body.pagina-semana .agenda-cabecalho {
     margin: 0;
     box-sizing: border-box;
 }
+
+/* Vista Todos: uma faixa independente por barbeiro, incluindo horários simultâneos. */
+.agenda-todos .marcacao-posicionada:not(.periodo-agenda) {
+    left: calc(3px + (100% - 6px) * var(--faixa-barbeiro) / var(--total-faixas)) !important;
+    right: auto !important;
+    width: calc((100% - 6px) / var(--total-faixas) - 2px) !important;
+    box-sizing: border-box;
+    z-index: 4;
+}
+.agenda-todos .marcacao-posicionada:not(.periodo-agenda) strong {
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+/* Fecho do serviço: X sempre acessível mesmo com conteúdo longo. */
+#modalFecho .modal-fecho-conteudo { max-height: 90dvh; overflow-y: auto; }
+#modalFecho .form-marcacao-topo {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #171717;
+    padding: 8px 0;
+}
+#modalFecho [data-fechar-fecho].fechar-modal {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    position: relative;
+    z-index: 21;
+}
