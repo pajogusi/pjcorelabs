@@ -68,7 +68,7 @@ self.addEventListener('fetch', event => {
         return (await cache.match(req)) ||
                (await cache.match(url.pathname)) ||
                Response.error();
-      }))
+      })
     );
   }
 });
